@@ -71,7 +71,7 @@
 - 넘어감: `docker compose`에 `--env-file`이 필요하다는 지적. 의도한 설계이고 빠뜨리면 안내 문구와 함께 중단됨(명령어는 `backend/CLAUDE.md`에 있음)
 
 ### PR
-- (PR 생성 후 기입)
+- https://github.com/timonPark/iris/pull/44
 
 ### 남은 일 / 관찰
 - `fastapi.testclient`가 `httpx` 사용은 deprecated이고 `httpx2`를 설치하라는 경고를 낸다. 테스트는 통과하며 이 이슈 범위 밖이라 그대로 두었다.
