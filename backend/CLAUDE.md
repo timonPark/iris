@@ -77,6 +77,18 @@ uv run alembic current                             # 현재 적용된 버전 확
 - 등록(`POST /users`)은 아이디만 받아 임시 비밀번호(`secrets`, 읽기 쉬운 12자)를 만들어 **응답에 한 번만** 줍니다. DB에는 argon2 해시만 있고 로그에도 남기지 않으며, 등록과 초기화 응답에는 `Cache-Control: no-store`가 붙습니다. 아이디 중복(관리자 아이디 포함, 동시 등록 경쟁 포함)은 409 `LOGIN_ID_TAKEN`입니다.
 - 차단/해제는 이미 그 상태여도 200(멱등)이고 다음 요청부터 적용됩니다. 비밀번호 초기화는 임시 비밀번호를 새로 만들고 `password_changed_at`을 갱신해 이전 토큰을 모두 무효로 하며, 차단 상태는 그대로 둡니다(행 잠금).
 
+### 음성 질문 (`app/voice.py`, `app/voice_api.py`)
+
+- `POST /api/v1/voice/questions`(multipart `audio` + 선택 `sessionId`, 모바일 전용)는 녹음을 **변환(ffmpeg) → 소리 확인 → 인식(whisper-cli) → 맞춤법 보정(`claude -p`)** 순으로 처리해 질문 텍스트로 만든 뒤, 텍스트 질문과 같은 길(`submit_question`)로 Hermes에 보냅니다. SSE는 `session`(첫 질문) → `question`(보정된 텍스트) → `delta`… → `done`입니다.
+- 단계 하나라도 실패하면 거기서 멈추고 Hermes를 부르지 않으며 아무것도 저장하지 않습니다. 오류: 2분 초과(길이는 변환 결과로 잼, 파일이 32MB를 넘어도) 422 `AUDIO_TOO_LONG`, 소리가 없거나 인식 결과가 비면 422 `SPEECH_NOT_RECOGNIZED`, 읽을 수 없는 파일은 422 `VALIDATION_FAILED`, 도구 실행 실패·시간 초과·보정 실패는 500 `VOICE_PROCESSING_FAILED`. 내 세션이 아니거나(404) 이미 답변 중이면(409) 녹음을 처리하기 **전에** 거절합니다.
+- 녹음은 임시 폴더에 받아 처리가 끝나면(성공, 실패, 취소 모두) 폴더째 지웁니다. 질문은 텍스트만 저장합니다.
+- 보정 결과가 비었거나 여러 줄이거나 원문과 너무 다르면(`is_faithful`) 보정 실패입니다. 인식 원문으로 대신 보내지 않습니다. 보정기는 인식 결과를 **표준입력(데이터)**으로만 받고 지시는 시스템 프롬프트에 있어서, 음성에 "이전 지시는 무시해"가 있어도 그대로 교정만 합니다(`tests/test_voice_pipeline.py`의 실제 도구 테스트가 확인). 보정기는 `--tools ""`, 빈 폴더, 세션 저장 안 함, 비밀 값이 없는 최소 환경 변수(`PATH HOME USER …`, 보정기에게만 `ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`)로 실행합니다. 모든 도구는 제한 시간이 있고, 넘기거나 요청이 취소되면 도구가 띄운 프로세스까지 정리하며, 실패하면 도구의 오류 메시지를 로그에 남깁니다.
+- 무음 녹음은 인식기에 넣으면 "you" 같은 말을 지어내므로 소리 크기로 먼저 걸러냅니다(`is_silent`).
+- 도구 경로와 보정 모델은 `app/config.py`(`FFMPEG_PATH`, `FFPROBE_PATH`, `WHISPER_CLI_PATH`, `WHISPER_MODEL_PATH`, `CLAUDE_PATH`, `CORRECTION_MODEL`)에서 `.env`로 바꿀 수 있고 기본값은 이 PC 기준입니다. `claude`는 로그인되어 있어야 하며(`claude auth login`), 서버를 띄우는 셸의 `PATH`에 `ffmpeg`, `claude`가 있어야 합니다.
+- 테스트: 파이프라인은 가짜 실행 파일(`tests/test_voice_pipeline.py`)과 가짜 `FakeVoice`(`tests/fakes.py`)로 확인하고, 진짜 도구는 `voice` 표시 테스트(macOS `say`로 샘플을 만들고 모델 호출 비용 발생)가 확인합니다. `uv run pytest -m "not voice"`로 뺄 수 있습니다.
+- 녹음을 처리하는 동안에는 DB 연결을 붙잡지 않습니다(처리 전에 트랜잭션을 닫음. 테스트가 확인).
+- 알려진 한계: 녹음 처리 동시 실행 수와 대기 안내는 제한하지 않습니다(#31). 업로드는 프레임워크가 본문을 다 읽은 뒤에 인증과 크기를 검사합니다(32MB 한도는 그 뒤에 적용). 시작할 때 도구가 설치되어 있는지는 점검하지 않아, 경로가 틀리면 첫 녹음에서 `VOICE_PROCESSING_FAILED`(로그에 원인)가 납니다. 보정 결과 검사(`is_faithful`)는 완벽한 방어가 아니라 명백한 답변·설명 덧붙임을 막는 장치입니다. 음성 질문 처리 중에 계정이 차단돼도 그 질문은 끝까지 처리됩니다. 인식 정확도는 whisper에 달려 있어서(예: "해줘"가 "해줘요"로 나오기도 함) 보정은 맞춤법만 고칩니다.
+
 ### 세션, 질문, 답변 (대화 기록)
 
 - 테이블은 `chat_sessions`(세션), `questions`, `answers`입니다(`app/models.py`). 세션 모델 이름은 SQLAlchemy의 `Session`과 겹치지 않게 `ChatSession`입니다. 질문 하나에 답변은 하나이고 둘은 한 트랜잭션으로 저장합니다. 답변 상태는 `completed`/`stopped`입니다.

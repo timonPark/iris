@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     hermes_api_url: str = "http://127.0.0.1:8642"
     hermes_api_key: SecretStr | None = None
 
+    # 음성 질문 처리에 쓰는 도구. 이 PC에 설치된 것을 쓴다(백엔드는 PC에서 직접 실행한다).
+    ffmpeg_path: str = "ffmpeg"
+    ffprobe_path: str = "ffprobe"
+    whisper_cli_path: str = "/opt/homebrew/bin/whisper-cli"
+    whisper_model_path: str = "~/.whisper-models/ggml-large-v3-turbo.bin"
+    claude_path: str = "claude"
+    correction_model: str = "haiku"  # 맞춤법 보정에 쓰는 가벼운 모델
+
     @property
     def database_url(self) -> str:
         url: URL = URL.create(

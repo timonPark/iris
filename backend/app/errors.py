@@ -72,6 +72,18 @@ def question_too_long() -> ApiError:
     return ApiError(422, ErrorCode.QUESTION_TOO_LONG, "질문이 너무 깁니다.")
 
 
+def audio_too_long() -> ApiError:
+    return ApiError(422, ErrorCode.AUDIO_TOO_LONG, "녹음은 2분까지 가능합니다.")
+
+
+def speech_not_recognized() -> ApiError:
+    return ApiError(422, ErrorCode.SPEECH_NOT_RECOGNIZED, "음성을 인식하지 못했습니다. 다시 녹음해 주세요.")
+
+
+def voice_processing_failed() -> ApiError:
+    return ApiError(500, ErrorCode.VOICE_PROCESSING_FAILED, "음성을 처리하지 못했습니다. 다시 시도해 주세요.")
+
+
 def login_id_taken() -> ApiError:
     return ApiError(409, ErrorCode.LOGIN_ID_TAKEN, "이미 사용 중인 아이디입니다.")
 

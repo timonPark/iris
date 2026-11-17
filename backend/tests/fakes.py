@@ -1,6 +1,7 @@
 import asyncio
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from app.hermes import HermesError
 
@@ -69,3 +70,34 @@ class FakeHermes:
             self.finished = True
         except asyncio.CancelledError:
             raise
+
+
+class FakeVoice:
+    """녹음을 텍스트로 바꾸는 파이프라인 대신 정해진 문장을 돌려주는 가짜. 받은 녹음 파일과 그 내용을 기록한다."""
+
+    def __init__(
+        self,
+        text: str = "오늘 서울 날씨가 어때요",
+        *,
+        error: Exception | None = None,
+        delay: float = 0.0,
+        probe: Callable[[], object] | None = None,
+    ) -> None:
+        self.text: str = text
+        self.error: Exception | None = error
+        self.delay: float = delay
+        self.probe: Callable[[], object] | None = probe  # 처리 도중에 호출해 상태를 기록한다
+        self.probed: list[object] = []
+        self.calls: list[Path] = []
+        self.contents: list[bytes] = []  # 호출 시점에 파일이 실제로 있었는지, 무엇이 올라왔는지
+
+    async def process(self, audio: Path) -> str:
+        self.calls.append(audio)
+        self.contents.append(audio.read_bytes())
+        if self.probe is not None:
+            self.probed.append(self.probe())
+        if self.delay:
+            await asyncio.sleep(self.delay)
+        if self.error is not None:
+            raise self.error
+        return self.text
