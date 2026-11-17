@@ -9,7 +9,7 @@ from app.db import create_db_engine
 
 
 @pytest.mark.integration
-def test_backend_connects_to_postgres() -> None:
+def test_backend_connects_to_postgres(ensure_test_database: None) -> None:
     engine: Engine = create_db_engine(get_settings())
     with engine.connect() as connection:
         assert connection.execute(text("SELECT 1")).scalar_one() == 1

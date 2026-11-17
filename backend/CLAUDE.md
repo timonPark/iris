@@ -21,7 +21,8 @@ Python 프로젝트는 `uv`로 관리합니다. 아래 `backend/` 명령은 모�
 ### 처음 한 번
 
 ```bash
-cp .env.example .env        # 그리고 POSTGRES_PASSWORD 를 바꾼다 (.env 는 커밋하지 않는다)
+cp .env.example .env        # 그리고 POSTGRES_PASSWORD, ADMIN_LOGIN_ID, ADMIN_PASSWORD 를 정한다 (.env 는 커밋하지 않는다)
+chmod 600 .env              # 비밀값이 들어 있으니 본인만 읽게 한다
 uv sync                     # 의존성 설치
 ```
 
@@ -49,6 +50,15 @@ uv run alembic current                             # 현재 적용된 버전 확
 - 셸에 `VIRTUAL_ENV`가 다른 환경으로 잡혀 있으면 `uv`가 경고를 내고 무시합니다. 동작에는 문제가 없습니다.
 - DB 접속 정보는 `backend/.env`에만 둡니다(`alembic.ini`에 쓰지 않습니다). 변수 이름은 `app/config.py`와 `docker-compose.yml`이 같이 씁니다.
 
+### 계정과 첫 관리자
+
+- 계정 모델은 `app/models.py`의 `Account`(테이블 `accounts`)입니다. 역할은 `admin`/`user`, 상태는 `active`/`blocked`이고 `docs/api/openapi.yaml`, `ssot/GLOSSARY.md`와 이름이 같습니다. 계정 삭제는 없습니다.
+- 아이디(영문 소문자·숫자 4~20자)와 비밀번호(8자 이상, 복잡도 규칙 없음) 규칙은 `app/security.py`가 검증하고, 아이디 규칙은 DB CHECK로도 막습니다. 비밀번호는 argon2 해시로만 저장합니다.
+- 첫 관리자는 `backend/.env`의 `ADMIN_LOGIN_ID`, `ADMIN_PASSWORD`로 앱을 시작할 때 만들어집니다(`app/accounts.py`). 같은 아이디가 이미 있으면 만들지 않고, 둘 중 하나만 있거나 규칙에 맞지 않으면 시작이 중단됩니다.
+- **주의**: 관리자 계정이 만들어진 뒤에 `.env`의 `ADMIN_PASSWORD`를 바꿔도 반영되지 않습니다(이슈 #15는 "첫 생성"까지). 시작할 때 비밀번호가 다르거나 관리자가 차단되어 있으면 경고 로그를 남기지만, 관리자 비밀번호를 설정으로 바꾸거나 차단된 관리자를 되살리는 방법은 아직 없습니다.
+- DB를 쓰는 테스트는 개발 DB(`iris`)가 아니라 같은 서버의 `iris_test` DB에서 돕니다(없으면 테스트가 만들고 마이그레이션을 적용합니다). 대부분 매번 변경을 되돌리고, 앱 시작 테스트만 직접 저장하고 지웁니다. 그래서 `.env`의 실제 관리자 계정은 테스트에 영향을 받지 않습니다.
+- 앱 로거에 설정이 없어 INFO 로그(`관리자 계정 '...': 만들었습니다`)는 uvicorn 출력에 나오지 않고, 경고는 나옵니다.
+
 ### Hermes 연동
 
 - 백엔드는 이 PC의 Hermes API 서버(`http://127.0.0.1:8642`)를 `app/hermes.py`의 `HermesClient.stream_chat()`으로 호출합니다(`/v1/chat/completions`, 스트림).
@@ -60,4 +70,4 @@ uv run alembic current                             # 현재 적용된 버전 확
 
 ### 마이그레이션 도구
 
-마이그레이션은 Alembic(SQLAlchemy)을 씁니다. 새 테이블 모델은 `app/db.py`의 `Base`를 상속하고 `migrations/env.py`에서 import해서 `Base.metadata`에 등록합니다. 기준 마이그레이션(`0001`)은 비어 있고, 계정 테이블은 #15에서 만듭니다.
+마이그레이션은 Alembic(SQLAlchemy)을 씁니다. 새 테이블 모델은 `app/db.py`의 `Base`를 상속해 `app/models.py`에 두면 `migrations/env.py`가 등록합니다(`uv run alembic revision --autogenerate -m "설명"`으로 변경분을 만들고, 만들어진 파일을 반드시 읽어서 확인합니다). 기준 마이그레이션(`0001`)은 비어 있고, `0002`가 `accounts` 테이블을 만듭니다.

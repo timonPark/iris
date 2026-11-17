@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy.engine import URL, make_url
 
 from app.config import Settings
 
@@ -38,6 +39,13 @@ def test_database_url_is_built_from_parts() -> None:
 def test_database_url_escapes_special_characters_in_password() -> None:
     settings: Settings = make_settings(postgres_password="p@ss/w:rd")
     assert "p%40ss%2Fw%3Ard" in settings.database_url
+
+
+def test_database_url_escapes_special_characters_in_user_and_database() -> None:
+    settings: Settings = make_settings(postgres_user="a@b", postgres_db="d/b")
+    url: URL = make_url(settings.database_url)
+    assert url.username == "a@b"
+    assert url.database == "d/b"
 
 
 def test_missing_password_is_rejected() -> None:
