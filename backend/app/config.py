@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     admin_login_id: str | None = None
     admin_password: SecretStr | None = None
 
+    # accessToken 서명 키(32자 이상). 없거나 짧으면 앱이 시작하지 않는다. 노출되면 누구나 토큰을 만들 수 있다.
+    jwt_secret: SecretStr | None = None
+
     # Hermes API 서버. 키는 백엔드만 보관하고 클라이언트에 노출하지 않는다.
     hermes_api_url: str = "http://127.0.0.1:8642"
     hermes_api_key: SecretStr | None = None
