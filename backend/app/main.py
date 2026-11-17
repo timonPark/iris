@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from starlette.concurrency import run_in_threadpool
 
 from app.accounts import create_initial_admin
+from app.admin import router as admin_router
 from app.auth import router as auth_router
 from app.config import Settings, get_settings
 from app.db import create_db_engine, create_session_factory
@@ -56,6 +57,7 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     app.include_router(auth_router)
     app.include_router(sessions_router)
+    app.include_router(admin_router)
     return app
 
 
