@@ -1,0 +1,13 @@
+# 비밀값
+.env
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Node
+node_modules/
+
+# OS, 편집기
+.DS_Store

@@ -26,7 +26,7 @@ Hermes와 연관성이 높은 캐릭터로 정한 이름입니다. Iris는 그�
 | [`mobile/`](mobile/README.md) | 모바일 앱 | Flutter (iOS, Android) |
 | [`ssot/`](ssot/README.md) | 용어와 개념의 단일 기준 | 문서 |
 | `docs/` | 기획 문서, API 규격 | 문서 |
-| `docker-compose.yml` | PostgreSQL | Docker (예정) |
+| `docker-compose.yml` | PostgreSQL | Docker |
 
 백엔드, 사용자 웹, 관리자 웹은 whisper, Claude, Hermes 접근을 그대로 쓰기 위해 이 PC에서 직접 실행하고, PostgreSQL만 컨테이너로 실행합니다.
 
