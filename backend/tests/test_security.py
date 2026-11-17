@@ -30,6 +30,12 @@ def test_passwords_shorter_than_eight_characters_are_rejected(password: str) -> 
         validate_password(password)
 
 
+def test_password_length_is_limited_to_1024_characters() -> None:
+    assert validate_password("a" * 1024) == "a" * 1024
+    with pytest.raises(ValueError, match="1024"):
+        validate_password("a" * 1025)
+
+
 def test_hash_is_not_the_plain_password_and_verifies() -> None:
     password_hash: str = hash_password("correct-horse")
     assert password_hash != "correct-horse"
