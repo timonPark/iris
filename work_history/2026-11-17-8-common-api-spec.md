@@ -4,9 +4,9 @@
 |---|---|
 | 이슈 | #8 (https://github.com/timonPark/iris/issues/8) |
 | 브랜치 | 2026-11-17-8-common-api-spec |
-| 상태 | 검증 대기 |
+| 상태 | 완료 |
 | 시작일자 | 2026-11-17 |
-| 종료일자 | |
+| 종료일자 | 2026-11-17 |
 
 ## 작업 내용
 
@@ -28,7 +28,7 @@
 ### 완료 조건
 - [x] `docs/api/openapi.yaml`이 유효성 검사를 통과한다. (`redocly lint` 1.34.5: valid, 경고 2건은 info.license 없음과 localhost 서버 주소로 의도한 값)
 - [x] 위 항목이 모두 들어 있다.
-- [ ] 웹과 모바일 쪽이 읽고 확인했다.
+- [ ] 웹과 모바일 쪽이 읽고 확인했다. (웹과 모바일이 아직 없어 지금은 확인할 수 없는 조건이다. 웹·모바일 구현 이슈에서 규격대로 동작하는지로 확인하기로 이관함, 사용자 결정)
 - [x] `ssot/GLOSSARY.md`의 용어와 일치한다. (용어집에 없는 `턴`은 쓰지 않기로 하고 질문 목록 안에 답변을 넣는 방식으로 바꿈)
 
 ### 결정 필요 (규격을 쓰면서 기본안을 제시하고 검토받는다)
@@ -48,6 +48,7 @@
   - 목록은 `cursor`/`limit`/`nextCursor` 방식, 세션 열람은 최신 질문부터
   - 질문 전송은 `POST /sessions/questions`(sessionId 생략 시 첫 질문), 세션 열람은 `GET /sessions/{id}/questions`(각 질문에 답변이 들어 있음)
   - 추가 오류 코드: UNAUTHORIZED, INVALID_CREDENTIALS, VALIDATION_FAILED, SESSION_NOT_FOUND, USER_NOT_FOUND, LOGIN_ID_TAKEN, NOT_STREAMING, AUDIO_TOO_LONG, SPEECH_NOT_RECOGNIZED, VOICE_PROCESSING_FAILED
+- 2026-11-17 사용자가 머지를 지시해 상태를 `완료`로 변경하고 PR #42를 머지함. 마지막 완료 조건은 지금 확인할 수 없어 구현 이슈로 이관함.
 - 2026-11-17 `턴`은 용어집에 없는 말이라 쓰지 않기로 함. 세션 열람은 질문 목록 안에 답변을 넣는 `GET /sessions/{id}/questions`로 바꿈(사용자와 논의 후 결정). 바꾼 뒤 `redocly lint` 다시 통과.
 - 2026-11-17 PR 생성, 상태를 `검증 대기`로 변경. 마지막 완료 조건(웹과 모바일 쪽 확인)은 웹과 모바일 구현을 진행한 뒤 규격대로 동작하는지 검증해서 확인하기로 함(사용자 결정).
 - 2026-11-17 코드 리뷰: `codex`, `agy`가 설치되어 있지 않아 사용자 승인으로 `/code-review`(medium)로 대신함. 규칙과 다르게 진행한 것이다.
@@ -75,4 +76,4 @@
 - 넘어감: 음성 API에 401/403이 없다는 지적. 이미 정의되어 있어 사실과 다름
 
 ### 남은 일
-- 웹과 모바일 쪽 확인
+- 웹과 모바일 쪽 확인: 웹·모바일 구현 이슈(#18, #19, #24, #25, #32 등)에서 규격대로 동작하는지로 확인. 안 맞는 곳이 나오면 `openapi.yaml`을 먼저 고치는 새 이슈나 PR로 처리.
