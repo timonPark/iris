@@ -5,6 +5,7 @@ requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.20.1",
     "fastapi>=0.163.1",
+    "httpx>=0.28.1",
     "psycopg[binary]>=3.3.9",
     "pydantic-settings>=2.16.3",
     "sqlalchemy>=2.1.9",
@@ -14,10 +15,12 @@ dependencies = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-markers = ["integration: PostgreSQL이 떠 있어야 하는 테스트"]
+markers = [
+    "integration: 외부 시스템(PostgreSQL, Hermes)이 떠 있어야 하는 테스트",
+    "hermes: 실제 Hermes 모델을 호출하는 테스트(비용 발생)",
+]
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
     "pytest>=9.2.0",
 ]
