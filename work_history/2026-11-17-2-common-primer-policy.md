@@ -65,7 +65,7 @@
 - 넘어감: 없음
 
 ### PR
-- (PR 생성 후 기입)
+- https://github.com/timonPark/iris/pull/43
 
 ### GitHub Project
 - 상태(`In Progress`, `검증 대기`)와 `Start date`, `Target date`는 갱신하지 못했다. 현재 `gh` 토큰에 `project` 권한이 없다.
