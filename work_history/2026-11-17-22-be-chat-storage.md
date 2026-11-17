@@ -4,9 +4,9 @@
 |---|---|
 | 이슈 | #22 (https://github.com/timonPark/iris/issues/22) |
 | 브랜치 | 2026-11-17-22-be-chat-storage |
-| 상태 | 검증 대기 |
+| 상태 | 완료 |
 | 시작일자 | 2026-11-17 |
-| 종료일자 | |
+| 종료일자 | 2026-11-17 |
 
 ## 작업 내용
 
@@ -84,6 +84,9 @@
 
 ### PR
 - https://github.com/timonPark/iris/pull/49
+
+### 머지
+- 2026-11-17 사용자가 머지를 지시해 상태를 `완료`로 변경하고 PR #49를 머지함.
 
 ### 남은 일 / 관찰
 - **#23에서 할 일**: 질문을 받는 엔드포인트(`POST /sessions/questions`)가 `save_exchange()`를 쓰고, 세션당 스트리밍 하나(`SESSION_BUSY`)를 지킨다. 맥락은 `list_questions`가 아니라 세션의 질문·답변 전체를 오래된 순으로 꺼내서 Hermes에 보내야 하므로, 그 조회 함수가 필요하다.
