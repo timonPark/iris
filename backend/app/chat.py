@@ -11,6 +11,8 @@ from app.pagination import keyset_page
 
 # PostgreSQL 텍스트에 저장할 수 없는 문자: NUL, 그리고 UTF-8로 바꿀 수 없는 짝 없는 서로게이트
 UNSTORABLE: re.Pattern[str] = re.compile("[\x00\ud800-\udfff]")
+# 곧바로 중지해서 빈 답변이 저장된 질문의 맥락 표시. 빈 assistant 메시지는 모델 API가 거부할 수 있다.
+EMPTY_ANSWER_PLACEHOLDER: str = "(답변 없이 중단됨)"
 SESSIONS_SCOPE: str = "sessions"  # 세션 목록의 커서 범위. 질문 목록은 questions_scope()
 
 QUESTION_MAX_LENGTH: int = 65_536  # 질문 한 개의 최대 길이. 넘으면 Hermes가 오류 없이 끝을 자른다(#10)
@@ -68,20 +70,29 @@ def save_exchange(
     answer_text: str,
     status: AnswerStatus,
     now: datetime | None = None,
+    new_session_id: uuid.UUID | None = None,
+    asked_at: datetime | None = None,
 ) -> Question:
     """질문과 답변 한 쌍을 저장한다. session_id가 없으면(첫 질문) 세션도 만든다.
+
+    새 세션의 ID는 `new_session_id`로 미리 정할 수 있다(답변이 저장되기 전에 클라이언트에 알려 주기 위해).
+    질문한 시각(`asked_at`)과 답변이 끝난 시각(`now`)은 다르다. 질문과 새 세션은 질문한 시각으로, 답변과 최근 활동은
+    끝난 시각으로 저장한다. `asked_at`을 주지 않으면 같은 시각이다.
 
     저장(commit)은 호출한 쪽이 한다. 검사에 실패하면 아무것도 저장하지 않는다.
     """
     validate_question_text(question_text)
     moment: datetime = now or utc_now()
+    asked: datetime = asked_at or moment
     if session_id is None:
         chat: ChatSession = ChatSession(
             account_id=account_id,
             title=session_title(question_text),
-            created_at=moment,
+            created_at=asked,
             updated_at=moment,
         )
+        if new_session_id is not None:
+            chat.id = new_session_id
         db.add(chat)
     else:
         chat = require_own_session(db, account_id, session_id)
@@ -93,13 +104,36 @@ def save_exchange(
         )
         db.expire(chat, ["updated_at"])
     db.flush()
-    question: Question = Question(session_id=chat.id, text=question_text, created_at=moment)
+    question: Question = Question(session_id=chat.id, text=question_text, created_at=asked)
     question.answer = Answer(
         text=clean_answer_text(answer_text), status=status, created_at=moment
     )
     db.add(question)
     db.flush()
     return question
+
+
+def load_context(db: Session, account_id: uuid.UUID, session_id: uuid.UUID) -> list[dict[str, str]]:
+    """세션의 이전 질문과 답변을 오래된 순으로 모두 모델 메시지로 만든다(길이 한도는 두지 않는다).
+
+    맥락은 Iris DB가 기준이라서 질문마다 이 전체를 Hermes에 함께 보낸다.
+    """
+    require_own_session(db, account_id, session_id)
+    questions: list[Question] = list(
+        db.scalars(
+            select(Question)
+            .where(Question.session_id == session_id)
+            .options(selectinload(Question.answer))
+            .order_by(Question.created_at, Question.id)
+        )
+    )
+    messages: list[dict[str, str]] = []
+    for question in questions:
+        messages.append({"role": "user", "content": question.text})
+        messages.append(
+            {"role": "assistant", "content": question.answer.text or EMPTY_ANSWER_PLACEHOLDER}
+        )
+    return messages
 
 
 def list_sessions(

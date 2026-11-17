@@ -72,6 +72,18 @@ def question_too_long() -> ApiError:
     return ApiError(422, ErrorCode.QUESTION_TOO_LONG, "질문이 너무 깁니다.")
 
 
+def session_busy() -> ApiError:
+    return ApiError(409, ErrorCode.SESSION_BUSY, "답변이 끝난 뒤에 질문해 주세요.")
+
+
+def not_streaming() -> ApiError:
+    return ApiError(409, ErrorCode.NOT_STREAMING, "진행 중인 답변이 없습니다.")
+
+
+def server_error() -> ApiError:
+    return ApiError(500, ErrorCode.SERVER_ERROR, "서버 오류가 발생했습니다.")
+
+
 def error_response(status_code: int, code: ErrorCode, message: str) -> JSONResponse:
     return JSONResponse(
         status_code=status_code, content={"error": {"code": code.value, "message": message}}

@@ -1,4 +1,5 @@
 import json
+from collections.abc import AsyncIterator
 
 import httpx
 import pytest
@@ -132,3 +133,55 @@ async def test_real_hermes_streams_an_answer() -> None:
     messages: list[dict[str, str]] = [{"role": "user", "content": "한 단어로만 답해줘: 안녕"}]
     texts: list[str] = [text async for text in client.stream_chat(messages)]
     assert "".join(texts).strip() != ""
+
+
+# --- open_chat: 연결이 열린 뒤에야 스트림을 준다 -----------------------------------------
+
+
+class BrokenStream(httpx.AsyncByteStream):
+    """첫 조각을 보낸 뒤 연결이 끊기는 응답 본문."""
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        yield sse(chunk("부분"))
+        raise httpx.ReadError("연결이 끊겼다")
+
+
+@pytest.mark.anyio
+async def test_open_chat_fails_when_entering_if_hermes_refuses() -> None:
+    client: HermesClient = make_client(httpx.MockTransport(lambda request: httpx.Response(401)))
+    with pytest.raises(HermesError):
+        async with client.open_chat([{"role": "user", "content": "hi"}]):
+            raise AssertionError("연결이 거부되었는데 블록 안으로 들어왔다")
+
+
+@pytest.mark.anyio
+async def test_open_chat_fails_when_entering_if_hermes_is_down() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused")
+
+    with pytest.raises(HermesError):
+        async with make_client(httpx.MockTransport(handler)).open_chat([]):
+            raise AssertionError("연결할 수 없는데 블록 안으로 들어왔다")
+
+
+@pytest.mark.anyio
+async def test_open_chat_yields_the_deltas_once_open() -> None:
+    body: bytes = sse(chunk("안녕"), chunk("하세요"), "data: [DONE]")
+    client: HermesClient = make_client(
+        httpx.MockTransport(lambda request: httpx.Response(200, content=body))
+    )
+    async with client.open_chat([{"role": "user", "content": "hi"}]) as stream:
+        assert [text async for text in stream] == ["안녕", "하세요"]
+
+
+@pytest.mark.anyio
+async def test_a_connection_that_breaks_mid_stream_is_a_hermes_error() -> None:
+    client: HermesClient = make_client(
+        httpx.MockTransport(lambda request: httpx.Response(200, stream=BrokenStream()))
+    )
+    received: list[str] = []
+    with pytest.raises(HermesError):
+        async with client.open_chat([]) as stream:
+            async for text in stream:
+                received.append(text)
+    assert received == ["부분"]  # 끊기기 전에 받은 조각은 전달된다

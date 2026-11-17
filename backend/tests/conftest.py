@@ -1,8 +1,13 @@
 import os
+import socket
+import threading
+import time
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+import uvicorn
 
 # 테스트는 개발 DB(iris)가 아니라 별도 DB에서 돌린다. 환경 변수가 .env보다 우선하므로
 # 설정(app.config)을 처음 읽기 전에 정해 둔다.
@@ -11,6 +16,10 @@ os.environ["POSTGRES_DB"] = TEST_DATABASE_NAME
 # 토큰 서명 키도 테스트 전용 값을 쓴다(실제 키는 backend/.env 에만 있다).
 TEST_JWT_SECRET: str = "test-only-secret-never-used-outside-pytest-0123456789"
 os.environ["JWT_SECRET"] = TEST_JWT_SECRET
+# 앱을 시작하면 첫 관리자가 만들어진다. backend/.env 의 실제 관리자 설정(비밀번호 해시)이 테스트 DB에
+# 들어가지 않도록 테스트 전용 값으로 고정한다(환경 변수를 지우기만 하면 .env 값이 다시 쓰인다).
+os.environ["ADMIN_LOGIN_ID"] = "testadmin1"
+os.environ["ADMIN_PASSWORD"] = "test-only-admin-password-1"
 
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
@@ -95,9 +104,7 @@ def install_test_routes(app: FastAPI) -> None:
 
 @pytest.fixture
 def app_client(monkeypatch: pytest.MonkeyPatch, migrated_engine: Engine) -> Iterator[TestClient]:
-    """앱 시작(lifespan)까지 실행하는 클라이언트. 실제 관리자 설정은 쓰지 않는다."""
-    for name in ("ADMIN_LOGIN_ID", "ADMIN_PASSWORD"):
-        monkeypatch.delenv(name, raising=False)
+    """앱 시작(lifespan)까지 실행하는 클라이언트. 실제 관리자 설정은 쓰지 않는다(위의 테스트 전용 값)."""
     get_settings.cache_clear()
     app: FastAPI = create_app()
     install_test_routes(app)
@@ -119,3 +126,38 @@ def chat_factory(account_factory: AccountFactory, migrated_engine: Engine) -> It
     factory: ChatFactory = ChatFactory(migrated_engine)
     yield factory
     factory.delete_all()
+
+
+@dataclass
+class LiveServer:
+    """실제 소켓으로 접속하는 서버. TestClient는 스트리밍 응답을 끝까지 모은 뒤에야 돌려주므로,
+    중지·연결 끊김·동시 요청처럼 스트리밍 도중의 동작은 이 서버로 확인한다."""
+
+    base_url: str
+    app: FastAPI
+
+
+def free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+@pytest.fixture(scope="module")
+def live_server(migrated_engine: Engine) -> Iterator[LiveServer]:
+    get_settings.cache_clear()
+    app: FastAPI = create_app()
+    server: uvicorn.Server = uvicorn.Server(
+        uvicorn.Config(app, host="127.0.0.1", port=free_port(), log_level="warning")
+    )
+    thread: threading.Thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    deadline: float = time.monotonic() + 15
+    while not server.started and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert server.started, "테스트 서버가 시작되지 않았다"
+    port: int = server.servers[0].sockets[0].getsockname()[1]
+    yield LiveServer(base_url=f"http://127.0.0.1:{port}", app=app)
+    server.should_exit = True
+    thread.join(timeout=15)
+    get_settings.cache_clear()
