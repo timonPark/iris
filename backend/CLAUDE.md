@@ -59,6 +59,16 @@ uv run alembic current                             # 현재 적용된 버전 확
 - DB를 쓰는 테스트는 개발 DB(`iris`)가 아니라 같은 서버의 `iris_test` DB에서 돕니다(없으면 테스트가 만들고 마이그레이션을 적용합니다). 대부분 매번 변경을 되돌리고, 앱 시작 테스트만 직접 저장하고 지웁니다. 그래서 `.env`의 실제 관리자 계정은 테스트에 영향을 받지 않습니다.
 - 앱 로거에 설정이 없어 INFO 로그(`관리자 계정 '...': 만들었습니다`)는 uvicorn 출력에 나오지 않고, 경고는 나옵니다.
 
+### 로그인과 요청마다 하는 검사
+
+- `POST /api/v1/auth/login`(`app/auth.py`)이 아이디·비밀번호를 확인하고 accessToken(JWT, HS256)을 줍니다. 토큰에는 `sub`(계정 id)와 `iat`(발급 시각, 마이크로초까지)만 있고 **만료(`exp`)가 없습니다**. 서명 키는 `backend/.env`의 `JWT_SECRET`(32자 이상)이며, 없거나 짧으면 앱이 시작하지 않습니다. 키를 바꾸면 발급된 모든 토큰이 무효가 됩니다.
+- 만료가 없으므로 **요청마다** 계정을 DB에서 조회해 검사합니다(`authorize`). 순서: 토큰 오류·계정 없음·발급 시각이 `password_changed_at`보다 이름 → 401 `UNAUTHORIZED`, 차단 → 403 `ACCOUNT_BLOCKED`, 임시 비밀번호 상태 → 403 `PASSWORD_CHANGE_REQUIRED`.
+- 보호할 경로에는 `Depends(current_account)`를 씁니다. 비밀번호 변경 API(#17)만 `Depends(current_account_for_password_change)`를 써서 임시 비밀번호 상태를 통과시킵니다.
+- 오류는 `raise ApiError(...)`(또는 `app/errors.py`의 `unauthorized()` 같은 함수)로 던지면 `{"error": {"code", "message"}}` 형식이 됩니다. 코드와 문구는 `docs/api/openapi.yaml`과 같습니다. 입력 값 오류는 422 `VALIDATION_FAILED`, 처리하지 못한 예외는 500 `SERVER_ERROR`입니다. 단, 없는 경로(404)와 허용하지 않는 메서드(405)는 규격에 오류 코드가 없어서 프레임워크 기본 응답(`{"detail": ...}`)을 그대로 씁니다.
+- 로그인은 비밀번호를 먼저 확인한 뒤에만 "차단됨"을 알리고, 없는 아이디도 해시 검증을 거칩니다(계정 존재 여부와 차단 여부를 응답으로 알 수 없게).
+- 테스트에서는 `app_client`(앱 시작까지 실행), `account_factory`(저장되는 계정 생성), 테스트 전용 경로(`/_test/...`, `tests/conftest.py`)를 씁니다. 제품 엔드포인트가 아닙니다.
+- **알려진 빈틈**: 로그인 시도 횟수 제한이 없습니다. 서버 쪽 로그아웃이 없어 토큰을 폐기하려면 비밀번호를 바꾸거나 계정을 차단해야 합니다(이슈 범위 밖).
+
 ### Hermes 연동
 
 - 백엔드는 이 PC의 Hermes API 서버(`http://127.0.0.1:8642`)를 `app/hermes.py`의 `HermesClient.stream_chat()`으로 호출합니다(`/v1/chat/completions`, 스트림).
