@@ -18,6 +18,8 @@ from app.hermes import ChatBackend, HermesError, create_hermes_client
 from app.runs import RunRegistry
 from app.sessions import router as sessions_router
 from app.tokens import require_jwt_secret
+from app.voice import ToolPipeline, default_tools
+from app.voice_api import router as voice_router
 
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -43,6 +45,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.session_factory = session_factory
     app.state.runs = RunRegistry()
     app.state.hermes = hermes_backend(settings)
+    app.state.voice = ToolPipeline(default_tools(settings))
     try:
         # DB 조회와 argon2 해시는 이벤트 루프를 막으므로 스레드에서 실행한다.
         await run_in_threadpool(create_initial_admin, session_factory, settings)
@@ -57,6 +60,7 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     app.include_router(auth_router)
     app.include_router(sessions_router)
+    app.include_router(voice_router)
     app.include_router(admin_router)
     return app
 

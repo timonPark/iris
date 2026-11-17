@@ -10,6 +10,7 @@ dependencies = [
     "psycopg[binary]>=3.3.9",
     "pydantic-settings>=2.16.3",
     "pyjwt>=2.15.1",
+    "python-multipart>=0.0.34",
     "sqlalchemy>=2.1.9",
     "uvicorn[standard]>=0.54.0",
 ]
@@ -20,6 +21,7 @@ testpaths = ["tests"]
 markers = [
     "integration: 외부 시스템(PostgreSQL, Hermes)이 떠 있어야 하는 테스트",
     "hermes: 실제 Hermes 모델을 호출하는 테스트(비용 발생)",
+    "voice: 실제 ffmpeg, whisper, claude를 실행하는 테스트(모델 호출 비용 발생)",
 ]
 
 [dependency-groups]

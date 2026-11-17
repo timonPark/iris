@@ -134,6 +134,15 @@ def read_context(
         db.rollback()
 
 
+def ensure_session_free(
+    registry: RunRegistry, account_id: uuid.UUID, session_id: uuid.UUID | None
+) -> None:
+    """내 세션에 진행 중인 답변이 있으면 BUSY. 남의 세션이면 내 세션이 아니므로 없는 세션과 같다."""
+    active: ChatRun | None = None if session_id is None else registry.get(session_id)
+    if active is not None:
+        raise session_busy() if active.account_id == account_id else session_not_found()
+
+
 @router.post("/questions")
 async def send_question(
     body: QuestionRequest,
@@ -143,17 +152,29 @@ async def send_question(
 ) -> StreamingResponse:
     """질문을 Hermes에 보내고 답변을 SSE로 돌려준다. 이 요청이 끊겨도 답변은 끝까지 받아 저장한다."""
     text: str = validate_question_text(body.text)
-    account_id: uuid.UUID = account.id
     session_id: uuid.UUID | None = None if body.session_id is None else parse_session_id(body.session_id)
+    return await submit_question(request, account.id, db, text, session_id)
+
+
+async def submit_question(
+    request: Request,
+    account_id: uuid.UUID,
+    db: Session,
+    text: str,
+    session_id: uuid.UUID | None,
+    *,
+    announce_text: bool = False,
+) -> StreamingResponse:
+    """검사를 마친 질문 텍스트를 작업으로 등록하고 SSE 응답을 연다(텍스트 질문과 음성 질문이 같이 쓴다).
+
+    `announce_text`가 참이면 보정된 질문 텍스트를 `question` 이벤트로 먼저 알린다(음성 질문).
+    """
     registry: RunRegistry = request.app.state.runs
     backend: ChatBackend | None = request.app.state.hermes
     if backend is None:
         logger.error("HERMES_API_KEY가 없어 질문을 처리할 수 없다")
         raise server_error()
-    active: ChatRun | None = None if session_id is None else registry.get(session_id)
-    if active is not None:
-        # 내 세션에 진행 중인 답변이 있으면 BUSY. 남의 세션이면 내 세션이 아니므로 없는 세션과 같다.
-        raise session_busy() if active.account_id == account_id else session_not_found()
+    ensure_session_free(registry, account_id, session_id)
     is_new: bool = session_id is None
     run: ChatRun = ChatRun(account_id, uuid.uuid4() if session_id is None else session_id, is_new, text, [])
     registry.add(run)  # 위의 확인과 이 등록 사이에 await가 없어서, 동시에 온 두 요청 중 하나만 등록된다
@@ -164,10 +185,10 @@ async def send_question(
         raise
     run.messages = [*context, {"role": "user", "content": text}]
     launch_run(registry, backend, request.app.state.session_factory, run)
-    return await open_stream(run, is_new)
+    return await open_stream(run, is_new, text if announce_text else None)
 
 
-async def open_stream(run: ChatRun, is_new_session: bool) -> StreamingResponse:
+async def open_stream(run: ChatRun, is_new_session: bool, question_text: str | None = None) -> StreamingResponse:
     """Hermes가 스트림을 열 때까지 기다린 뒤 SSE 응답을 시작한다. 그 전에 실패하면 일반 오류 응답이다."""
     try:
         await run.started
@@ -178,6 +199,8 @@ async def open_stream(run: ChatRun, is_new_session: bool) -> StreamingResponse:
         logger.warning("Hermes 호출을 시작하지 못했다: %s", error)
         raise server_error() from error
     first: list[str] = [format_sse("session", {"id": str(run.session_id)})] if is_new_session else []
+    if question_text is not None:
+        first.append(format_sse("question", {"text": question_text}))
     return StreamingResponse(
         stream_events(run, first),
         media_type="text/event-stream",
