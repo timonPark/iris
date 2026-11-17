@@ -73,7 +73,7 @@
 - 넘어감: `compare_type`, `compare_server_default`. Alembic 1.20은 `compare_type`이 이미 기본으로 켜져 있고 서버 기본값은 아직 없음
 
 ### PR
-- (PR 생성 후 기입)
+- https://github.com/timonPark/iris/pull/46
 
 ### 남은 일 / 관찰
 - **관리자 비밀번호를 설정으로 바꾸는 방법이 없다.** 문서(`openapi.yaml`의 비밀번호 변경 설명, #20)는 "관리자 계정의 비밀번호는 설정으로만 변경"이라고 하는데, 이 이슈는 "첫 생성"까지만 정의한다. 계정이 만들어진 뒤 `.env`의 `ADMIN_PASSWORD`를 바꿔도 반영되지 않는다. 별도 이슈가 필요하다.
