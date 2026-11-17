@@ -39,7 +39,8 @@ docker compose --env-file backend/.env down        # 중지 (데이터는 iris-p
 ```bash
 uv run uvicorn app.main:app --reload --port 8000   # 실행. http://127.0.0.1:8000/docs
 uv run pytest                                      # 전체 테스트 (integration 테스트는 PostgreSQL이 떠 있어야 한다)
-uv run pytest -m "not integration"                 # DB 없이 돌릴 수 있는 테스트만
+uv run pytest -m "not integration"                 # 외부 시스템(DB, Hermes) 없이 돌릴 수 있는 테스트만
+uv run pytest -m "not hermes"                      # 실제 Hermes 모델 호출(비용)만 빼고 전부
 uv run alembic revision -m "설명"                  # 마이그레이션 파일 만들기
 uv run alembic upgrade head                        # 마이그레이션 적용
 uv run alembic current                             # 현재 적용된 버전 확인
@@ -47,6 +48,15 @@ uv run alembic current                             # 현재 적용된 버전 확
 
 - 셸에 `VIRTUAL_ENV`가 다른 환경으로 잡혀 있으면 `uv`가 경고를 내고 무시합니다. 동작에는 문제가 없습니다.
 - DB 접속 정보는 `backend/.env`에만 둡니다(`alembic.ini`에 쓰지 않습니다). 변수 이름은 `app/config.py`와 `docker-compose.yml`이 같이 씁니다.
+
+### Hermes 연동
+
+- 백엔드는 이 PC의 Hermes API 서버(`http://127.0.0.1:8642`)를 `app/hermes.py`의 `HermesClient.stream_chat()`으로 호출합니다(`/v1/chat/completions`, 스트림).
+- 키(`HERMES_API_KEY`)는 `backend/.env`에만 둡니다. Hermes 쪽은 `~/.hermes/.env`에 `API_SERVER_ENABLED=true`와 `API_SERVER_KEY`를 두고 `hermes gateway restart`로 적용합니다. 설정과 재시작 전에는 `~/.hermes/gateway_state.json`의 `active_agents`가 0인지 확인합니다.
+- Hermes 통합 테스트(`hermes` 표시)는 API 서버가 떠 있어야 하고 실제 모델을 호출하므로 비용이 듭니다. `HERMES_API_KEY`가 없으면 건너뜁니다.
+- 스트림이 `[DONE]` 없이 끝나면(Hermes 재시작 등) 정상 완료가 아니라 `HermesError`입니다. 클라이언트는 `create_hermes_client(settings)`로 만들며, 키가 없으면 `HermesError`가 납니다.
+- 이 키는 Hermes의 terminal 명령 실행까지 열어 줍니다. 키와 `backend/.env`(권한 600)를 클라이언트나 저장소에 노출하지 않습니다.
+- 확인된 동작(#10, 2026-11-17): (1) 메시지 하나가 65,536자를 넘으면 Hermes가 오류 없이 끝부분을 자릅니다. 질문 길이 한도는 백엔드가 막아야 합니다. (2) 스트림 연결을 끊으면 Hermes의 실행도 약 2초 안에 멈춥니다. (3) Hermes에 옵시디언 저장을 시키면 `obsidian-notion-sync`가 Notion에도 반영합니다. 테스트에서 저장 요청을 보낼 때 주의합니다.
 
 ### 마이그레이션 도구
 
