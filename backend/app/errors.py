@@ -56,6 +56,14 @@ def password_change_required() -> ApiError:
     return ApiError(403, ErrorCode.PASSWORD_CHANGE_REQUIRED, "비밀번호를 먼저 변경해 주세요.")
 
 
+def forbidden() -> ApiError:
+    return ApiError(403, ErrorCode.FORBIDDEN, "권한이 없습니다.")
+
+
+def validation_failed(message: str = "입력 값을 확인해 주세요.") -> ApiError:
+    return ApiError(422, ErrorCode.VALIDATION_FAILED, message)
+
+
 def error_response(status_code: int, code: ErrorCode, message: str) -> JSONResponse:
     return JSONResponse(
         status_code=status_code, content={"error": {"code": code.value, "message": message}}

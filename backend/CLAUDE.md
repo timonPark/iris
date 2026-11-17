@@ -64,6 +64,7 @@ uv run alembic current                             # 현재 적용된 버전 확
 - `POST /api/v1/auth/login`(`app/auth.py`)이 아이디·비밀번호를 확인하고 accessToken(JWT, HS256)을 줍니다. 토큰에는 `sub`(계정 id)와 `iat`(발급 시각, 마이크로초까지)만 있고 **만료(`exp`)가 없습니다**. 서명 키는 `backend/.env`의 `JWT_SECRET`(32자 이상)이며, 없거나 짧으면 앱이 시작하지 않습니다. 키를 바꾸면 발급된 모든 토큰이 무효가 됩니다.
 - 만료가 없으므로 **요청마다** 계정을 DB에서 조회해 검사합니다(`authorize`). 순서: 토큰 오류·계정 없음·발급 시각이 `password_changed_at`보다 이름 → 401 `UNAUTHORIZED`, 차단 → 403 `ACCOUNT_BLOCKED`, 임시 비밀번호 상태 → 403 `PASSWORD_CHANGE_REQUIRED`.
 - 보호할 경로에는 `Depends(current_account)`를 씁니다. 비밀번호 변경 API(#17)만 `Depends(current_account_for_password_change)`를 써서 임시 비밀번호 상태를 통과시킵니다.
+- 비밀번호 변경은 `POST /api/v1/auth/password`입니다. 임시 비밀번호 상태에서는 새 비밀번호만, 평소에는 현재 비밀번호와 새 비밀번호를 받고, 관리자 계정은 403 `FORBIDDEN`입니다(관리자 비밀번호는 설정으로만 바꿉니다). 변경하면 `password_changed_at`이 갱신되어 이전 토큰이 모두 무효가 되고 응답으로 새 토큰을 줍니다. 비밀번호는 8자 이상 1024자 이하입니다(`app/security.py`, 요청 크기 제한). 새 비밀번호는 지금 비밀번호(임시 비밀번호 포함)와 달라야 하고, 같은 계정의 동시 변경은 행 잠금으로 순서대로 처리됩니다.
 - 오류는 `raise ApiError(...)`(또는 `app/errors.py`의 `unauthorized()` 같은 함수)로 던지면 `{"error": {"code", "message"}}` 형식이 됩니다. 코드와 문구는 `docs/api/openapi.yaml`과 같습니다. 입력 값 오류는 422 `VALIDATION_FAILED`, 처리하지 못한 예외는 500 `SERVER_ERROR`입니다. 단, 없는 경로(404)와 허용하지 않는 메서드(405)는 규격에 오류 코드가 없어서 프레임워크 기본 응답(`{"detail": ...}`)을 그대로 씁니다.
 - 로그인은 비밀번호를 먼저 확인한 뒤에만 "차단됨"을 알리고, 없는 아이디도 해시 검증을 거칩니다(계정 존재 여부와 차단 여부를 응답으로 알 수 없게).
 - 테스트에서는 `app_client`(앱 시작까지 실행), `account_factory`(저장되는 계정 생성), 테스트 전용 경로(`/_test/...`, `tests/conftest.py`)를 씁니다. 제품 엔드포인트가 아닙니다.

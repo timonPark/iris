@@ -85,8 +85,12 @@ paths:
         임시 비밀번호로 로그인한 직후(`passwordChangeRequired`가 true)에는 새 비밀번호만 보낸다.
         `currentPassword`는 `passwordChangeRequired`가 true인 계정만 생략할 수 있다. 그 외 계정이 생략하면
         `VALIDATION_FAILED`(422), 틀리면 `INVALID_CREDENTIALS`(401)로 거부한다. 임시 비밀번호 상태의 계정이 보내도 무시한다.
+        `currentPassword`가 빈 문자열이면 없는 것과 같이 취급한다.
+        새 비밀번호는 지금 비밀번호와 달라야 한다(임시 비밀번호를 그대로 쓸 수 없다). 같으면 `VALIDATION_FAILED`(422)이다.
+        같은 계정의 동시 변경은 순서대로 처리되어 하나만 성공한다(나머지는 현재 비밀번호가 맞지 않아 401).
         변경하면 이전 토큰이 모두 무효가 되고, 응답으로 새 accessToken을 받는다.
-        관리자 계정의 비밀번호는 이 API로 바꾸지 않는다(설정으로만 변경).
+        관리자 계정의 비밀번호는 이 API로 바꾸지 않는다(설정으로만 변경). 관리자가 호출하면 `FORBIDDEN`(403)이다.
+        비밀번호는 로그인과 같이 1024자까지만 받는다.
       operationId: changePassword
       requestBody:
         required: true
@@ -102,9 +106,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/ChangePasswordResponse'
         '401':
-          $ref: '#/components/responses/InvalidCredentials'
+          description: 토큰이 올바르지 않거나 비밀번호를 바꾸기 전에 발급된 토큰이다(`UNAUTHORIZED`), 또는 현재 비밀번호가 틀렸다(`INVALID_CREDENTIALS`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  value:
+                    error:
+                      code: UNAUTHORIZED
+                      message: 다시 로그인해 주세요.
+                invalidCredentials:
+                  value:
+                    error:
+                      code: INVALID_CREDENTIALS
+                      message: 아이디 또는 비밀번호가 올바르지 않습니다.
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 관리자 계정이다(`FORBIDDEN`), 또는 차단된 계정이다(`ACCOUNT_BLOCKED`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                forbidden:
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: 권한이 없습니다.
+                blocked:
+                  value:
+                    error:
+                      code: ACCOUNT_BLOCKED
+                      message: 차단된 계정입니다.
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '500':
@@ -474,6 +508,7 @@ components:
           description: 아이디
         password:
           type: string
+          maxLength: 1024
     LoginResponse:
       type: object
       required: [accessToken, role, passwordChangeRequired]
@@ -491,11 +526,13 @@ components:
       properties:
         currentPassword:
           type: string
+          maxLength: 1024
           description: 평소 변경에는 필수. 임시 비밀번호 직후 강제 변경에는 보내지 않는다.
         newPassword:
           type: string
           minLength: 8
-          description: 8자 이상, 복잡도 규칙 없음
+          maxLength: 1024
+          description: 8자 이상 1024자 이하, 복잡도 규칙 없음
     ChangePasswordResponse:
       type: object
       required: [accessToken]
