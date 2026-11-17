@@ -1,10 +1,12 @@
 import uuid
+from datetime import datetime
 
 from sqlalchemy import delete, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.models import Account, AccountStatus, Role
+from app.chat import delete_session, save_exchange
+from app.models import Account, AccountStatus, AnswerStatus, ChatSession, Question, Role
 from app.security import hash_password
 
 
@@ -47,3 +49,39 @@ class AccountFactory:
     def delete_all(self) -> None:
         with self._factory.begin() as session:
             session.execute(delete(Account).where(Account.login_id.in_(self.login_ids)))
+
+
+class ChatFactory:
+    """대화 기록을 저장(commit)해서 앱이 다른 연결로 읽게 하는 생성기. 지우는 일은 account_factory와 함께 한다."""
+
+    def __init__(self, engine: Engine) -> None:
+        self._factory: sessionmaker[Session] = sessionmaker(engine, expire_on_commit=False)
+        self._login_ids: list[str] = []
+
+    def exchange(
+        self,
+        account: Account,
+        question: str,
+        answer: str = "답변",
+        *,
+        session_id: uuid.UUID | None = None,
+        status: AnswerStatus = AnswerStatus.COMPLETED,
+        at: datetime | None = None,
+    ) -> Question:
+        """질문과 답변 한 쌍을 저장한다. session_id가 없으면 새 세션이 만들어진다."""
+        self._login_ids.append(account.login_id)
+        with self._factory.begin() as db:
+            return save_exchange(
+                db, account.id, session_id=session_id, question_text=question,
+                answer_text=answer, status=status, now=at,
+            )
+
+    def soft_delete(self, account: Account, session_id: uuid.UUID) -> None:
+        with self._factory.begin() as db:
+            delete_session(db, account.id, session_id)
+
+    def delete_all(self) -> None:
+        with self._factory.begin() as db:
+            owners = select(Account.id).where(Account.login_id.in_(self._login_ids))
+            # 질문과 답변은 DB의 ON DELETE CASCADE로 함께 지워진다.
+            db.execute(delete(ChatSession).where(ChatSession.account_id.in_(owners)))

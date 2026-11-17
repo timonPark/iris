@@ -11,6 +11,7 @@ from app.auth import router as auth_router
 from app.config import Settings, get_settings
 from app.db import create_db_engine, create_session_factory
 from app.errors import register_error_handlers
+from app.sessions import router as sessions_router
 from app.tokens import require_jwt_secret
 
 
@@ -35,6 +36,7 @@ def create_app() -> FastAPI:
     app: FastAPI = FastAPI(title="Iris", lifespan=lifespan)
     register_error_handlers(app)
     app.include_router(auth_router)
+    app.include_router(sessions_router)
     return app
 
 

@@ -25,7 +25,7 @@ from app.config import get_settings  # noqa: E402
 from app.db import create_db_engine  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.models import Account  # noqa: E402
-from tests.factories import AccountFactory  # noqa: E402
+from tests.factories import AccountFactory, ChatFactory  # noqa: E402
 
 BACKEND_DIR: Path = Path(__file__).resolve().parents[1]
 
@@ -109,5 +109,13 @@ def app_client(monkeypatch: pytest.MonkeyPatch, migrated_engine: Engine) -> Iter
 @pytest.fixture
 def account_factory(migrated_engine: Engine) -> Iterator[AccountFactory]:
     factory: AccountFactory = AccountFactory(migrated_engine)
+    yield factory
+    factory.delete_all()
+
+
+@pytest.fixture
+def chat_factory(account_factory: AccountFactory, migrated_engine: Engine) -> Iterator[ChatFactory]:
+    """account_factory 다음에 만들어지므로, 정리는 대화 기록을 먼저 지우고 계정을 지운다."""
+    factory: ChatFactory = ChatFactory(migrated_engine)
     yield factory
     factory.delete_all()

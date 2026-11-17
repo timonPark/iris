@@ -64,6 +64,14 @@ def validation_failed(message: str = "입력 값을 확인해 주세요.") -> Ap
     return ApiError(422, ErrorCode.VALIDATION_FAILED, message)
 
 
+def session_not_found() -> ApiError:
+    return ApiError(404, ErrorCode.SESSION_NOT_FOUND, "세션을 찾을 수 없습니다.")
+
+
+def question_too_long() -> ApiError:
+    return ApiError(422, ErrorCode.QUESTION_TOO_LONG, "질문이 너무 깁니다.")
+
+
 def error_response(status_code: int, code: ErrorCode, message: str) -> JSONResponse:
     return JSONResponse(
         status_code=status_code, content={"error": {"code": code.value, "message": message}}
