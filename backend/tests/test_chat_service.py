@@ -7,10 +7,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.chat import (
+    EMPTY_ANSWER_PLACEHOLDER,
     QUESTION_MAX_LENGTH,
     delete_session,
     list_questions,
     list_sessions,
+    load_context,
     save_exchange,
     session_title,
     validate_question_text,
@@ -440,3 +442,100 @@ def test_deleting_twice_or_deleting_someone_elses_session_is_session_not_found(
     with pytest.raises(ApiError) as unknown:
         delete_session(db_session, owner.id, uuid.uuid4())
     assert unknown.value.code == ErrorCode.SESSION_NOT_FOUND
+
+
+# --- 맥락(이전 질문과 답변) --------------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_context_lists_every_previous_pair_oldest_first(db_session: Session) -> None:
+    owner: Account = make_account(db_session)
+    first: Question = save_exchange(
+        db_session, owner.id, session_id=None, question_text="내 이름은 철수야", answer_text="반가워요",
+        status=AnswerStatus.COMPLETED, now=at(0),
+    )
+    for n, (q, a) in enumerate([("내 이름이 뭐지?", "철수님이죠"), ("고마워", "천만에요")], start=1):
+        save_exchange(
+            db_session, owner.id, session_id=first.session_id, question_text=q, answer_text=a,
+            status=AnswerStatus.COMPLETED, now=at(n),
+        )
+    assert load_context(db_session, owner.id, first.session_id) == [
+        {"role": "user", "content": "내 이름은 철수야"},
+        {"role": "assistant", "content": "반가워요"},
+        {"role": "user", "content": "내 이름이 뭐지?"},
+        {"role": "assistant", "content": "철수님이죠"},
+        {"role": "user", "content": "고마워"},
+        {"role": "assistant", "content": "천만에요"},
+    ]
+
+
+@pytest.mark.integration
+def test_context_keeps_a_stopped_answer_and_marks_an_empty_one(db_session: Session) -> None:
+    owner: Account = make_account(db_session)
+    first: Question = save_exchange(
+        db_session, owner.id, session_id=None, question_text="긴 질문", answer_text="받은 부분까지",
+        status=AnswerStatus.STOPPED, now=at(0),
+    )
+    save_exchange(
+        db_session, owner.id, session_id=first.session_id, question_text="또 질문", answer_text="",
+        status=AnswerStatus.STOPPED, now=at(1),
+    )
+    context: list[dict[str, str]] = load_context(db_session, owner.id, first.session_id)
+    assert context[1] == {"role": "assistant", "content": "받은 부분까지"}
+    # 빈 assistant 메시지는 모델 API가 거부할 수 있어 표시를 넣는다.
+    assert context[3] == {"role": "assistant", "content": EMPTY_ANSWER_PLACEHOLDER}
+    assert all(message["content"] for message in context)
+
+
+@pytest.mark.integration
+def test_context_contains_only_that_session(db_session: Session) -> None:
+    owner: Account = make_account(db_session)
+    other: uuid.UUID = new_session(db_session, owner, "다른 세션의 질문", 0)
+    mine: uuid.UUID = new_session(db_session, owner, "내 세션의 질문", 1)
+    contents: list[str] = [m["content"] for m in load_context(db_session, owner.id, mine)]
+    assert "다른 세션의 질문" not in contents
+    assert contents[0] == "내 세션의 질문"
+    assert other != mine
+
+
+@pytest.mark.integration
+def test_context_of_a_foreign_deleted_or_unknown_session_is_session_not_found(
+    db_session: Session,
+) -> None:
+    owner: Account = make_account(db_session)
+    stranger: Account = make_account(db_session)
+    mine: uuid.UUID = new_session(db_session, owner, "내 세션", 0)
+    gone: uuid.UUID = new_session(db_session, owner, "지운 세션", 1)
+    delete_session(db_session, owner.id, gone)
+    for account_id, session_id in [(stranger.id, mine), (owner.id, gone), (owner.id, uuid.uuid4())]:
+        with pytest.raises(ApiError) as info:
+            load_context(db_session, account_id, session_id)
+        assert (info.value.status_code, info.value.code) == (404, ErrorCode.SESSION_NOT_FOUND)
+
+
+@pytest.mark.integration
+def test_a_new_session_can_be_created_with_an_id_chosen_in_advance(db_session: Session) -> None:
+    """첫 질문의 세션 ID를 답변이 저장되기 전에 클라이언트에 알려 주기 위해 미리 정한다."""
+    owner: Account = make_account(db_session)
+    chosen: uuid.UUID = uuid.uuid4()
+    question: Question = save_exchange(
+        db_session, owner.id, session_id=None, new_session_id=chosen, question_text="질문",
+        answer_text="답", status=AnswerStatus.COMPLETED,
+    )
+    assert question.session_id == chosen
+    assert db_session.get(ChatSession, chosen).account_id == owner.id
+
+
+@pytest.mark.integration
+def test_the_question_keeps_the_time_it_was_asked_and_the_answer_the_time_it_finished(
+    db_session: Session,
+) -> None:
+    owner: Account = make_account(db_session)
+    question: Question = save_exchange(
+        db_session, owner.id, session_id=None, question_text="질문", answer_text="답",
+        status=AnswerStatus.COMPLETED, now=at(5), asked_at=at(0),
+    )
+    chat: ChatSession = db_session.get(ChatSession, question.session_id)
+    assert question.created_at == at(0)
+    assert question.answer.created_at == at(5)
+    assert (chat.created_at, chat.updated_at) == (at(0), at(5))

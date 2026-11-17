@@ -48,6 +48,9 @@ class AccountFactory:
 
     def delete_all(self) -> None:
         with self._factory.begin() as session:
+            # 앱이 HTTP로 만든 대화 기록(세션, 질문, 답변)도 계정보다 먼저 지운다. 질문과 답변은 DB의 CASCADE로 함께 지워진다.
+            owners = select(Account.id).where(Account.login_id.in_(self.login_ids))
+            session.execute(delete(ChatSession).where(ChatSession.account_id.in_(owners)))
             session.execute(delete(Account).where(Account.login_id.in_(self.login_ids)))
 
 

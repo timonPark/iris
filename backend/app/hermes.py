@@ -1,6 +1,7 @@
 import json
 from collections.abc import AsyncIterator
-from typing import Any
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from typing import Any, Protocol
 
 import httpx
 
@@ -26,6 +27,14 @@ def parse_delta(data: str) -> str | None:
         raise HermesError(f"Hermes가 올바르지 않은 데이터를 보냈다: {data[:100]}") from error
 
 
+class ChatBackend(Protocol):
+    """질문을 보내고 답변 조각을 스트리밍으로 받는 쪽. 실제로는 HermesClient이고 테스트에서는 가짜를 쓴다."""
+
+    def open_chat(
+        self, messages: list[dict[str, str]]
+    ) -> AbstractAsyncContextManager[AsyncIterator[str]]: ...
+
+
 class HermesClient:
     """Hermes API 서버의 `/v1/chat/completions`를 스트리밍으로 호출한다."""
 
@@ -36,7 +45,13 @@ class HermesClient:
         self._api_key: str = api_key
         self._transport: httpx.AsyncBaseTransport | None = transport
 
-    async def stream_chat(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
+    @asynccontextmanager
+    async def open_chat(self, messages: list[dict[str, str]]) -> AsyncIterator[AsyncIterator[str]]:
+        """연결을 열고 응답 상태를 확인한 뒤에 답변 조각의 스트림을 준다.
+
+        Hermes가 꺼져 있거나 요청을 거부하면 `async with`에 들어갈 때 HermesError가 난다(스트림은 시작되지 않는다).
+        `async with`를 벗어나면 연결을 닫고, 연결이 닫히면 Hermes도 실행을 멈춘다(#10에서 확인).
+        """
         payload: dict[str, object] = {"model": "hermes-agent", "messages": messages, "stream": True}
         headers: dict[str, str] = {"Authorization": f"Bearer {self._api_key}"}
         try:
@@ -49,10 +64,22 @@ class HermesClient:
                     if response.is_error:
                         await response.aread()
                         raise HermesError(f"Hermes가 {response.status_code} 응답: {response.text[:200]}")
-                    async for text in self._deltas(response):
-                        yield text
+                    yield self._guarded(response)
         except httpx.HTTPError as error:
             raise HermesError(f"Hermes 호출 실패: {error}") from error
+
+    async def stream_chat(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        async with self.open_chat(messages) as stream:
+            async for text in stream:
+                yield text
+
+    async def _guarded(self, response: httpx.Response) -> AsyncIterator[str]:
+        """스트림을 읽는 도중 연결이 끊기면 HermesError로 바꿔서 전한다."""
+        try:
+            async for text in self._deltas(response):
+                yield text
+        except httpx.HTTPError as error:
+            raise HermesError(f"Hermes 응답을 받는 중 연결이 끊겼다: {error}") from error
 
     @staticmethod
     async def _deltas(response: httpx.Response) -> AsyncIterator[str]:
