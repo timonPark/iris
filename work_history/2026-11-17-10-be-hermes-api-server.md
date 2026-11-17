@@ -84,7 +84,7 @@ Hermes API 서버는 기본으로 꺼져 있다. 백엔드가 Hermes를 호출�
 - 넘어감: anyio pytest 플러그인 미선언. `httpx`가 가져오는 의존성이라 따로 선언하지 않음
 
 ### PR
-- (PR 생성 후 기입)
+- https://github.com/timonPark/iris/pull/45
 
 ### 정리가 필요한 테스트 흔적 (사용자 확인 필요)
 - 로컬 노트: `/Users/jeong/hermes-obsidian/90-Hermes/Iris-API-연동-테스트-1794895407.md`
