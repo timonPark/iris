@@ -163,6 +163,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AccountBlockedOrPasswordChange'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
         '500':
           $ref: '#/components/responses/ServerError'
   /api/v1/sessions/{sessionId}:
@@ -207,6 +209,8 @@ paths:
           $ref: '#/components/responses/AccountBlockedOrPasswordChange'
         '404':
           $ref: '#/components/responses/SessionNotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
         '500':
           $ref: '#/components/responses/ServerError'
   /api/v1/sessions/questions:
@@ -473,7 +477,7 @@ components:
       name: cursor
       in: query
       required: false
-      description: 이전 응답의 `nextCursor`. 첫 호출에는 생략한다. 서버가 만든 값이므로 그대로 돌려보내고, 호출 사이에 새 항목이 생겨도 중복이나 누락이 없다(위치 기준 커서).
+      description: 이전 응답의 `nextCursor`. 첫 호출에는 생략한다. 서버가 만든 값이므로 그대로 돌려보낸다. 위치 기준 커서라서 호출 사이에 새 항목이 생겨도 이미 본 항목이 다시 나오지 않는다. 다만 세션 목록은 최근 활동 순이라, 호출 사이에 새 질문이 와서 맨 위로 올라간 세션은 이번 순회에서 빠질 수 있다(처음부터 다시 호출하면 보인다). 커서는 그것을 준 목록에서만 쓸 수 있고, 다른 목록이나 다른 세션에 쓰면 `VALIDATION_FAILED`(422)이다.
       schema:
         type: string
     Limit:

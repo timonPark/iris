@@ -70,6 +70,16 @@ uv run alembic current                             # 현재 적용된 버전 확
 - 테스트에서는 `app_client`(앱 시작까지 실행), `account_factory`(저장되는 계정 생성), 테스트 전용 경로(`/_test/...`, `tests/conftest.py`)를 씁니다. 제품 엔드포인트가 아닙니다.
 - **알려진 빈틈**: 로그인 시도 횟수 제한이 없습니다. 서버 쪽 로그아웃이 없어 토큰을 폐기하려면 비밀번호를 바꾸거나 계정을 차단해야 합니다(이슈 범위 밖).
 
+### 세션, 질문, 답변 (대화 기록)
+
+- 테이블은 `chat_sessions`(세션), `questions`, `answers`입니다(`app/models.py`). 세션 모델 이름은 SQLAlchemy의 `Session`과 겹치지 않게 `ChatSession`입니다. 질문 하나에 답변은 하나이고 둘은 한 트랜잭션으로 저장합니다. 답변 상태는 `completed`/`stopped`입니다.
+- **질문을 저장하는 길은 `app/chat.py`의 `save_exchange()` 하나입니다.** 세션이 없으면(첫 질문) 세션도 만들고 이름은 첫 질문의 앞 30자입니다. 질문이 65,536자를 넘으면 `QUESTION_TOO_LONG`, 비어 있으면 `VALIDATION_FAILED`로 아무것도 저장하지 않습니다(질문 길이는 DB CHECK로도 막습니다). 질문을 받는 엔드포인트와 Hermes 호출은 #23의 몫이고, 그쪽이 이 함수를 씁니다.
+- **내 세션만** 다룹니다(`find_own_session`). 다른 사용자의 세션, 삭제된 세션, 없는 세션, UUID가 아닌 값은 모두 같은 404 `SESSION_NOT_FOUND`입니다(존재 여부를 알려 주지 않음). 삭제된 세션에 질문을 저장하려 해도 같습니다.
+- 삭제는 `deleted_at`만 채웁니다(soft delete). 목록·열람·삭제·질문 저장에서 보이지 않을 뿐 질문과 답변은 DB에 남고, 복구나 영구 삭제는 없습니다.
+- 목록은 위치 기준(keyset) 커서로 나눠서 호출합니다(`app/pagination.py`). 세션은 최근 활동 순(`updated_at`, 같으면 `id` 내림차순), 세션 안의 질문은 최신 질문부터입니다. 같은 시각의 항목도 정렬 보조키(`id`) 덕분에 한 번씩만 나옵니다. 잘못된 `cursor`나 범위 밖 `limit`(1~100, 기본 20)는 422 `VALIDATION_FAILED`입니다. 커서에는 어느 목록의 것인지(범위)가 들어 있어서 다른 목록이나 다른 세션에 쓰면 같은 오류이고, 극단적인 시각 값도 서버 오류가 아니라 422입니다. 새 목록은 `keyset_page()`를 쓰면 이 규칙을 그대로 얻습니다.
+- 질문에 NUL 문자나 UTF-8로 바꿀 수 없는 문자가 있으면 저장 단계에서 서버 오류가 나므로 422로 거부합니다. 반대로 **답변**은 Hermes가 이미 답한 뒤라서 거부하지 않고 문제 문자만 정리해서 저장합니다(NUL은 지우고 나머지는 `\\ufffd`). 최근 활동 시각은 DB에서 `GREATEST`로 갱신해 뒤로 가지 않습니다.
+- 테스트에서는 `chat_factory`(저장되는 대화 기록 생성기, `at=`으로 시각 지정)를 씁니다.
+
 ### Hermes 연동
 
 - 백엔드는 이 PC의 Hermes API 서버(`http://127.0.0.1:8642`)를 `app/hermes.py`의 `HermesClient.stream_chat()`으로 호출합니다(`/v1/chat/completions`, 스트림).

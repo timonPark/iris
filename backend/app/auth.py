@@ -1,8 +1,7 @@
 from collections.abc import Iterator
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from pydantic.alias_generators import to_camel
+from pydantic import Field, field_validator
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.accounts import find_account
@@ -15,6 +14,7 @@ from app.errors import (
     validation_failed,
 )
 from app.models import Account, AccountStatus, Role, utc_now
+from app.schemas import ApiModel
 from app.security import (
     LOGIN_ID_PATTERN,
     MAX_PASSWORD_LENGTH,
@@ -25,12 +25,6 @@ from app.security import (
 from app.tokens import InvalidTokenError, TokenClaims, decode_token, issue_token
 
 router: APIRouter = APIRouter(prefix="/api/v1/auth", tags=["auth"])
-
-
-class ApiModel(BaseModel):
-    """요청·응답 본문. 파이썬은 snake_case, JSON은 `openapi.yaml`처럼 camelCase로 주고받는다."""
-
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
 class LoginRequest(ApiModel):
