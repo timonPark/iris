@@ -70,6 +70,13 @@ uv run alembic current                             # 현재 적용된 버전 확
 - 테스트에서는 `app_client`(앱 시작까지 실행), `account_factory`(저장되는 계정 생성), 테스트 전용 경로(`/_test/...`, `tests/conftest.py`)를 씁니다. 제품 엔드포인트가 아닙니다.
 - **알려진 빈틈**: 로그인 시도 횟수 제한이 없습니다. 서버 쪽 로그아웃이 없어 토큰을 폐기하려면 비밀번호를 바꾸거나 계정을 차단해야 합니다(이슈 범위 밖).
 
+### 관리자 API (`app/admin.py`)
+
+- `/api/v1/admin` 라우터 전체에 `require_admin`이 라우터 수준 의존성으로 걸려 있습니다. 이 경로에 새 API를 추가해도 권한 검사를 빠뜨릴 수 없습니다. 관리자가 아니면 403 `FORBIDDEN`. 규격의 관리자 경로가 모두 비관리자를 거부하는지는 `tests/test_admin_api.py`가 OpenAPI에서 경로를 읽어 확인합니다.
+- 대상은 **사용자 역할 계정만**입니다. 관리자 계정, 없는 계정, UUID가 아닌 값은 모두 404 `USER_NOT_FOUND`입니다(관리자 계정의 존재도 알려 주지 않음). 목록도 사용자 계정만(차단 포함), 최신 등록 순, 커서 범위 `admin-users`입니다.
+- 등록(`POST /users`)은 아이디만 받아 임시 비밀번호(`secrets`, 읽기 쉬운 12자)를 만들어 **응답에 한 번만** 줍니다. DB에는 argon2 해시만 있고 로그에도 남기지 않으며, 등록과 초기화 응답에는 `Cache-Control: no-store`가 붙습니다. 아이디 중복(관리자 아이디 포함, 동시 등록 경쟁 포함)은 409 `LOGIN_ID_TAKEN`입니다.
+- 차단/해제는 이미 그 상태여도 200(멱등)이고 다음 요청부터 적용됩니다. 비밀번호 초기화는 임시 비밀번호를 새로 만들고 `password_changed_at`을 갱신해 이전 토큰을 모두 무효로 하며, 차단 상태는 그대로 둡니다(행 잠금).
+
 ### 세션, 질문, 답변 (대화 기록)
 
 - 테이블은 `chat_sessions`(세션), `questions`, `answers`입니다(`app/models.py`). 세션 모델 이름은 SQLAlchemy의 `Session`과 겹치지 않게 `ChatSession`입니다. 질문 하나에 답변은 하나이고 둘은 한 트랜잭션으로 저장합니다. 답변 상태는 `completed`/`stopped`입니다.

@@ -72,6 +72,14 @@ def question_too_long() -> ApiError:
     return ApiError(422, ErrorCode.QUESTION_TOO_LONG, "질문이 너무 깁니다.")
 
 
+def login_id_taken() -> ApiError:
+    return ApiError(409, ErrorCode.LOGIN_ID_TAKEN, "이미 사용 중인 아이디입니다.")
+
+
+def user_not_found() -> ApiError:
+    return ApiError(404, ErrorCode.USER_NOT_FOUND, "계정을 찾을 수 없습니다.")
+
+
 def session_busy() -> ApiError:
     return ApiError(409, ErrorCode.SESSION_BUSY, "답변이 끝난 뒤에 질문해 주세요.")
 

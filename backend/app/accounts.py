@@ -1,12 +1,21 @@
 import logging
+import uuid
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Settings
-from app.models import Account, AccountStatus, Role
-from app.security import hash_password, validate_login_id, validate_password, verify_password
+from app.errors import login_id_taken, user_not_found, validation_failed
+from app.models import Account, AccountStatus, Role, utc_now
+from app.pagination import keyset_page
+from app.security import (
+    generate_temporary_password,
+    hash_password,
+    validate_login_id,
+    validate_password,
+    verify_password,
+)
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -65,3 +74,73 @@ def create_initial_admin(factory: sessionmaker[Session], settings: Settings) -> 
         created: bool = ensure_initial_admin(session, login_id, password)
     logger.info("관리자 계정 '%s': %s", login_id, "만들었습니다" if created else "이미 있습니다")
     return created
+
+
+# --- 관리자가 사용자 계정을 다루는 일(app/admin.py가 쓴다). 저장(commit)은 호출한 쪽이 한다. ---
+
+ADMIN_USERS_SCOPE: str = "admin-users"  # 사용자 계정 목록의 커서 범위
+
+
+def require_user(db: Session, user_id: uuid.UUID, *, lock: bool = False) -> Account:
+    """사용자 역할의 계정만 찾는다. 관리자 계정과 없는 계정은 같은 USER_NOT_FOUND다(존재 여부도 알리지 않는다)."""
+    query: Select[tuple[Account]] = select(Account).where(
+        Account.id == user_id, Account.role == Role.USER
+    )
+    user: Account | None = db.scalars(query.with_for_update() if lock else query).first()
+    if user is None:
+        raise user_not_found()
+    return user
+
+
+def list_users(
+    db: Session, *, cursor: str | None, limit: int
+) -> tuple[list[Account], str | None]:
+    """사용자 역할 계정을 최신 등록 순으로 나눠서 돌려준다(차단된 계정 포함, 검색 없음)."""
+    query: Select[tuple[Account]] = select(Account).where(Account.role == Role.USER)
+    return keyset_page(
+        db, query, Account.created_at, Account.id, cursor=cursor, limit=limit, scope=ADMIN_USERS_SCOPE
+    )
+
+
+def create_user(db: Session, login_id: str) -> tuple[Account, str]:
+    """사용자 계정을 만들고 (계정, 임시 비밀번호)를 돌려준다. 임시 비밀번호는 DB에 해시로만 남는다."""
+    try:
+        validate_login_id(login_id)
+    except ValueError as error:
+        raise validation_failed(str(error)) from error
+    if find_account(db, login_id) is not None:
+        raise login_id_taken()
+    temporary: str = generate_temporary_password()
+    account: Account = Account(
+        login_id=login_id,
+        password_hash=hash_password(temporary),
+        role=Role.USER,
+        password_change_required=True,  # 임시 비밀번호로 로그인하면 바로 바꿔야 한다
+    )
+    try:
+        with db.begin_nested():
+            db.add(account)
+    except IntegrityError as error:  # 동시에 같은 아이디가 등록된 경우
+        raise login_id_taken() from error
+    return account, temporary
+
+
+def set_user_blocked(db: Session, user_id: uuid.UUID, *, blocked: bool) -> Account:
+    """차단하거나 해제한다. 이미 그 상태여도 그대로 성공한다."""
+    user: Account = require_user(db, user_id)
+    user.status = AccountStatus.BLOCKED if blocked else AccountStatus.ACTIVE
+    db.flush()
+    return user
+
+
+def reset_user_password(db: Session, user_id: uuid.UUID) -> tuple[Account, str]:
+    """임시 비밀번호를 새로 만든다. 이전 토큰은 모두 무효가 되고 계정은 임시 비밀번호 상태가 된다(차단 상태는 그대로)."""
+    temporary: str = generate_temporary_password()
+    password_hash: str = hash_password(temporary)  # 느린 해시는 행을 잠그기 전에 끝낸다
+    user: Account = require_user(db, user_id, lock=True)  # 사용자의 동시 비밀번호 변경과 순서대로 처리한다
+    user.password_hash = password_hash
+    user.password_changed_at = utc_now()
+    user.password_change_required = True
+    db.flush()
+    return user, temporary
+

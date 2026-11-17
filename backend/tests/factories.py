@@ -38,6 +38,10 @@ class AccountFactory:
         self.login_ids.append(login_id)
         return account
 
+    def track(self, login_id: str) -> None:
+        """앱(API)이 만든 계정도 테스트가 끝나면 지우도록 등록한다."""
+        self.login_ids.append(login_id)
+
     def update(self, login_id: str, **fields: object) -> None:
         with self._factory.begin() as session:
             account: Account = session.scalars(

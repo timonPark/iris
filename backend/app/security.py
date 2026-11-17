@@ -1,4 +1,6 @@
 import re
+import secrets
+import string
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
@@ -10,6 +12,12 @@ MIN_PASSWORD_LENGTH: int = 8
 MAX_PASSWORD_LENGTH: int = 1024
 
 _hasher: PasswordHasher = PasswordHasher()
+
+# 임시 비밀번호는 관리자가 사용자에게 말이나 메신저로 전달하므로 헷갈리는 글자(0 O o 1 l I)를 뺀다. 56자로 12자 = 약 70비트.
+TEMPORARY_PASSWORD_ALPHABET: str = (
+    "".join(c for c in string.ascii_letters if c not in "IOlo") + "23456789"
+)
+TEMPORARY_PASSWORD_LENGTH: int = 12
 
 
 def validate_login_id(value: str) -> str:
@@ -24,6 +32,11 @@ def validate_password(value: str) -> str:
             f"비밀번호는 {MIN_PASSWORD_LENGTH}자 이상 {MAX_PASSWORD_LENGTH}자 이하여야 합니다."
         )
     return value
+
+
+def generate_temporary_password() -> str:
+    """관리자가 전달할 임시 비밀번호. 암호학적으로 안전한 난수로 만든다."""
+    return "".join(secrets.choice(TEMPORARY_PASSWORD_ALPHABET) for _ in range(TEMPORARY_PASSWORD_LENGTH))
 
 
 def hash_password(password: str) -> str:
