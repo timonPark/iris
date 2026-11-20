@@ -33,6 +33,11 @@ def calls(directory: Path, name: str) -> list[str]:
     return log.read_text().splitlines() if log.exists() else []
 
 
+def claude_runs(setup: "Setup") -> int:
+    """보정기를 몇 번 불렀는가(시스템 프롬프트에 줄바꿈이 있어서 로그 줄 수로는 셀 수 없다)."""
+    return sum(1 for line in calls(setup.dir, "claude") if line.startswith("-p "))
+
+
 class Setup:
     """네 가지 도구를 가짜로 꾸민 파이프라인. 각 도구의 동작은 설정 파일로 바꾼다."""
 
@@ -66,6 +71,8 @@ class Setup:
             "    child = __import__('subprocess').Popen(['sleep', '30'])\n"
             "    (CFG / 'claude.child').write_text(str(child.pid))\n"
             "if (CFG / 'claude_sleep').exists(): __import__('time').sleep(30)\n"
+            "first = CFG / 'corrected_first'\n"
+            "if first.exists():\n    print(first.read_text()); first.unlink(); sys.exit(0)\n"
             "print((CFG / 'corrected').read_text())\n",
         )
         self.tools: VoiceTools = VoiceTools(ffmpeg=ffmpeg, ffprobe=ffprobe, whisper=whisper, whisper_model="model.bin", claude=claude)
@@ -185,9 +192,24 @@ async def test_an_empty_or_runaway_correction_fails_instead_of_falling_back_to_t
 
 
 @pytest.mark.anyio
+async def test_a_correction_that_answered_instead_of_correcting_is_retried_once(setup: Setup) -> None:
+    setup.set("corrected_first", "안녕하세요")  # 지시형 문장에 교정이 아니라 답을 한 경우
+    assert await setup.run() == "오늘 서울 날씨가 어때요?"
+    assert claude_runs(setup) == 2
+
+
+@pytest.mark.anyio
+async def test_a_correction_that_keeps_answering_fails_after_one_retry(setup: Setup) -> None:
+    setup.set("corrected", "안녕하세요")
+    assert await code_of(setup) == (500, "VOICE_PROCESSING_FAILED")
+    assert claude_runs(setup) == 2  # 무한히 다시 부르지 않는다
+
+
+@pytest.mark.anyio
 async def test_a_failing_corrector_fails_instead_of_falling_back_to_the_raw_text(setup: Setup) -> None:
     setup.flag("claude_fail")
     assert await code_of(setup) == (500, "VOICE_PROCESSING_FAILED")
+    assert claude_runs(setup) == 1  # 실행 실패는 다시 부르지 않는다(결과가 틀린 경우만 재시도)
 
 
 @pytest.mark.anyio
