@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.concurrency import run_in_threadpool
@@ -12,6 +13,7 @@ from app.accounts import create_initial_admin
 from app.admin import router as admin_router
 from app.auth import router as auth_router
 from app.config import Settings, get_settings
+from app.cors import ALLOWED_HEADERS, ALLOWED_METHODS, LOCAL_ORIGIN_PATTERN, configured_origins
 from app.db import create_db_engine, create_session_factory
 from app.errors import register_error_handlers
 from app.hermes import ChatBackend, HermesError, create_hermes_client
@@ -60,6 +62,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     app: FastAPI = FastAPI(title="Iris", lifespan=lifespan)
     register_error_handlers(app)
+    app.state.cors_origins = configured_origins()
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=app.state.cors_origins,
+        allow_origin_regex=LOCAL_ORIGIN_PATTERN,
+        allow_methods=ALLOWED_METHODS,
+        allow_headers=ALLOWED_HEADERS,
+    )  # 인증은 Authorization 헤더라서 쿠키(자격 증명)는 허용하지 않는다
     app.include_router(auth_router)
     app.include_router(sessions_router)
     app.include_router(voice_router)
