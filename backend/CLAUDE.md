@@ -128,8 +128,15 @@ uv run alembic current                             # 현재 적용된 버전 확
 - 처음 한 번: `brew install --cask ngrok`, ngrok 계정을 만들고 대시보드의 Authtoken으로 `ngrok config add-authtoken <토큰>`을 실행합니다(토큰은 ngrok 설정 파일에만 저장되고 저장소에는 넣지 않습니다). 고정 도메인은 대시보드 Domains에서 확인합니다.
 - 실행: 백엔드를 띄운 뒤 `ngrok http --url=<고정 도메인> 8000`. 확인: `curl https://<고정 도메인>/docs`.
 - 한도(무료): 월 HTTP 요청 2만 건, 월 전송 1GB. 넘으면 접속이 멈춥니다(요금 청구 없음). 사용량은 ngrok 대시보드(https://dashboard.ngrok.com) → Usage에서 요청 수와 전송량을 봅니다. 음성 업로드가 전송량에 세어지는지는 확인하지 못했으니 사용량을 보며 확인합니다. 한도에 가까워지면 ngrok 유료(Hobbyist) 또는 본인 도메인과 Cloudflare Named Tunnel로 바꿉니다.
-- ngrok 무료 플랜은 브라우저로 HTML 페이지를 처음 열 때 안내 페이지(경고)가 나올 수 있습니다. API 호출(POST)은 브라우저 User-Agent로 보내도 안내 페이지 없이 통과하는 것을 확인했습니다(2026-11-20). 웹이 브라우저에서 호출할 때 막히면 요청 헤더 `ngrok-skip-browser-warning`을 보냅니다. 사용자 웹과 관리자 웹을 다른 주소에서 열면 백엔드에 CORS 설정이 필요합니다(아직 없음, 해당 프로젝트 세팅 때 정함).
+- ngrok 무료 플랜은 브라우저로 HTML 페이지를 처음 열 때 안내 페이지(경고)가 나올 수 있습니다. API 호출(POST)은 브라우저 User-Agent로 보내도 안내 페이지 없이 통과하는 것을 확인했습니다(2026-11-20). 웹이 브라우저에서 호출할 때 막히면 요청 헤더 `ngrok-skip-browser-warning`을 보냅니다. 브라우저(사용자 웹, 관리자 웹)에서 호출하는 CORS는 아래 "CORS"를 봅니다.
 - 터널과 백엔드의 자동 실행은 아래 "자동 실행 (launchd)"를 봅니다.
+
+### CORS (브라우저에서 호출하기)
+
+- `localhost`, `127.0.0.1`, `[::1]`의 **모든 포트**(`http://`와 `https://`)는 항상 허용합니다(Vite 등 개발 서버가 포트를 바꿔도 됨). 그 밖의 주소(공개한 웹 주소 등)는 `backend/.env`의 `CORS_ALLOW_ORIGINS`에 쉼표로 적습니다(예: `https://iris.example.com,https://admin.example.com`). 바꾼 뒤에는 `launchctl kickstart -k gui/$(id -u)/com.iris.backend`로 다시 시작합니다. 추가 주소의 끝 `/`는 지우고 `*`는 무시합니다(허용할 주소를 하나씩 적습니다). 구현은 `app/cors.py`(설정은 앱을 가져오기만 해도 데이터베이스 설정을 요구하지 않도록 `Settings`와 분리한 `CorsSettings`)와 `app/main.py`(`CORSMiddleware`)입니다.
+- 허용 메서드는 `GET POST DELETE`, 허용 요청 헤더는 `Authorization`, `Content-Type`, `ngrok-skip-browser-warning`입니다. 인증이 쿠키가 아니라 `Authorization` 헤더라서 자격 증명(`Access-Control-Allow-Credentials`)은 켜지 않고, `*` 대신 보낸 주소를 그대로 돌려줍니다. 허용하지 않은 주소에는 CORS 헤더가 붙지 않습니다(브라우저가 응답을 막음).
+- 오류 응답(401, 422 등)과 처리하지 못한 오류(500)에도 헤더가 붙습니다. 500은 CORS 미들웨어 바깥에서 만들어져서 오류 처리기가 직접 붙입니다. 스트리밍(SSE) 응답도 같은 미들웨어를 지나가고 테스트로 확인합니다. 허용 요청 헤더는 고정 목록이라서, 웹이 다른 헤더를 보내면 사전 요청이 400이 되니 이 목록(`app/cors.py`)에 추가해야 합니다.
+- ngrok(외부 주소)을 거쳐도 브라우저 User-Agent의 사전 요청이 통과하는 것을 확인했습니다(2026-11-20). 모바일 앱은 CORS와 무관합니다.
 
 ### 자동 실행 (launchd)
 

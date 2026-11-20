@@ -5,6 +5,8 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.cors import is_allowed_origin
+
 logger: logging.Logger = logging.getLogger(__name__)
 
 
@@ -121,7 +123,13 @@ async def handle_validation_error(request: Request, error: Exception) -> JSONRes
 
 async def handle_unexpected_error(request: Request, error: Exception) -> JSONResponse:
     logger.exception("처리하지 못한 오류: %s %s", request.method, request.url.path, exc_info=error)
-    return error_response(500, ErrorCode.SERVER_ERROR, "서버 오류가 발생했습니다.")
+    response: JSONResponse = error_response(500, ErrorCode.SERVER_ERROR, "서버 오류가 발생했습니다.")
+    origin: str | None = request.headers.get("origin")
+    if is_allowed_origin(origin, getattr(request.app.state, "cors_origins", [])):
+        # 처리하지 못한 오류는 CORS 미들웨어 바깥에서 만들어지므로, 브라우저가 오류 내용을 읽을 수 있게 여기서 헤더를 붙인다.
+        response.headers["Access-Control-Allow-Origin"] = str(origin)
+        response.headers.append("Vary", "Origin")
+    return response
 
 
 def register_error_handlers(app: FastAPI) -> None:
