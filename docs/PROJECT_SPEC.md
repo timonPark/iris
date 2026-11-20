@@ -94,8 +94,8 @@ iris/
 
 ## 8. 외부 접속
 
-- Cloudflare Tunnel 사용 (HTTPS 제공, 공유기 설정 불필요)
-- 개발 중에는 임시 주소(`*.trycloudflare.com`)로 시작하고, 사용자 공개 전에 도메인을 연결
+- ngrok 사용 (HTTPS 제공, 공유기 설정 불필요). 무료 플랜이 계정마다 고정 개발 도메인(`*.ngrok-free.dev`)을 주므로 터널을 껐다 켜도 주소가 같다. (Cloudflare Quick Tunnel은 시작할 때마다 주소가 바뀌어서 쓰지 않는다.)
+- 무료 한도(월 HTTP 요청 2만 건, 월 전송 1GB)에 가까워지면 ngrok 유료 플랜이나 본인 도메인과 Cloudflare Named Tunnel로 바꾼다. 사용자 공개 전에 도메인 연결을 검토
 - 터널과 백엔드는 PC 부팅 시 자동 실행되도록 구성
 - PC가 꺼져 있는 동안은 접속 불가이며, 켜지면 같은 주소로 다시 접속됨
 

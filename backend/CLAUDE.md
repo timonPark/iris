@@ -122,6 +122,15 @@ uv run alembic current                             # 현재 적용된 버전 확
 - 이 키는 Hermes의 terminal 명령 실행까지 열어 줍니다. 키와 `backend/.env`(권한 600)를 클라이언트나 저장소에 노출하지 않습니다.
 - 확인된 동작(#10, 2026-11-17): (1) 메시지 하나가 65,536자를 넘으면 Hermes가 오류 없이 끝부분을 자릅니다. 질문 길이 한도는 백엔드가 막아야 합니다. (2) 스트림 연결을 끊으면 Hermes의 실행도 약 2초 안에 멈춥니다. (3) Hermes에 옵시디언 저장을 시키면 `obsidian-notion-sync`가 Notion에도 반영합니다. 테스트에서 저장 요청을 보낼 때 주의합니다.
 
+### 외부 접속 (ngrok 터널)
+
+- 모바일 앱과 외부 접속은 ngrok 무료 플랜의 **고정 개발 도메인**(`https://<고정 도메인>`)으로 이 PC의 백엔드(포트 8000)에 들어옵니다. 터널을 껐다 켜도 주소가 같습니다. 클라이언트(사용자 웹, 관리자 웹, 모바일 앱)의 서버 주소는 이 주소로 설정합니다(규격의 `servers`는 로컬 개발용 `http://localhost:8000`).
+- 처음 한 번: `brew install --cask ngrok`, ngrok 계정을 만들고 대시보드의 Authtoken으로 `ngrok config add-authtoken <토큰>`을 실행합니다(토큰은 ngrok 설정 파일에만 저장되고 저장소에는 넣지 않습니다). 고정 도메인은 대시보드 Domains에서 확인합니다.
+- 실행: 백엔드를 띄운 뒤 `ngrok http --url=<고정 도메인> 8000`. 확인: `curl https://<고정 도메인>/docs`.
+- 한도(무료): 월 HTTP 요청 2만 건, 월 전송 1GB. 넘으면 접속이 멈춥니다(요금 청구 없음). 사용량은 ngrok 대시보드(https://dashboard.ngrok.com) → Usage에서 요청 수와 전송량을 봅니다. 음성 업로드가 전송량에 세어지는지는 확인하지 못했으니 사용량을 보며 확인합니다. 한도에 가까워지면 ngrok 유료(Hobbyist) 또는 본인 도메인과 Cloudflare Named Tunnel로 바꿉니다.
+- ngrok 무료 플랜은 브라우저로 HTML 페이지를 처음 열 때 안내 페이지(경고)가 나올 수 있습니다. API 호출(POST)은 브라우저 User-Agent로 보내도 안내 페이지 없이 통과하는 것을 확인했습니다(2026-11-20). 웹이 브라우저에서 호출할 때 막히면 요청 헤더 `ngrok-skip-browser-warning`을 보냅니다. 사용자 웹과 관리자 웹을 다른 주소에서 열면 백엔드에 CORS 설정이 필요합니다(아직 없음, 해당 프로젝트 세팅 때 정함).
+- 터널과 백엔드의 부팅 시 자동 실행은 #35에서 구성합니다.
+
 ### 마이그레이션 도구
 
 마이그레이션은 Alembic(SQLAlchemy)을 씁니다. 새 테이블 모델은 `app/db.py`의 `Base`를 상속해 `app/models.py`에 두면 `migrations/env.py`가 등록합니다(`uv run alembic revision --autogenerate -m "설명"`으로 변경분을 만들고, 만들어진 파일을 반드시 읽어서 확인합니다). 기준 마이그레이션(`0001`)은 비어 있고, `0002`가 `accounts` 테이블을 만듭니다.
