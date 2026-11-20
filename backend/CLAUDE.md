@@ -129,7 +129,16 @@ uv run alembic current                             # 현재 적용된 버전 확
 - 실행: 백엔드를 띄운 뒤 `ngrok http --url=<고정 도메인> 8000`. 확인: `curl https://<고정 도메인>/docs`.
 - 한도(무료): 월 HTTP 요청 2만 건, 월 전송 1GB. 넘으면 접속이 멈춥니다(요금 청구 없음). 사용량은 ngrok 대시보드(https://dashboard.ngrok.com) → Usage에서 요청 수와 전송량을 봅니다. 음성 업로드가 전송량에 세어지는지는 확인하지 못했으니 사용량을 보며 확인합니다. 한도에 가까워지면 ngrok 유료(Hobbyist) 또는 본인 도메인과 Cloudflare Named Tunnel로 바꿉니다.
 - ngrok 무료 플랜은 브라우저로 HTML 페이지를 처음 열 때 안내 페이지(경고)가 나올 수 있습니다. API 호출(POST)은 브라우저 User-Agent로 보내도 안내 페이지 없이 통과하는 것을 확인했습니다(2026-11-20). 웹이 브라우저에서 호출할 때 막히면 요청 헤더 `ngrok-skip-browser-warning`을 보냅니다. 사용자 웹과 관리자 웹을 다른 주소에서 열면 백엔드에 CORS 설정이 필요합니다(아직 없음, 해당 프로젝트 세팅 때 정함).
-- 터널과 백엔드의 부팅 시 자동 실행은 #35에서 구성합니다.
+- 터널과 백엔드의 자동 실행은 아래 "자동 실행 (launchd)"를 봅니다.
+
+### 자동 실행 (launchd)
+
+- 백엔드(`com.iris.backend`)와 ngrok 터널(`com.iris.tunnel`)은 macOS **launchd LaunchAgent**로 **로그인할 때 자동 실행**되고(`RunAtLoad`), 죽으면 10초 뒤 다시 시작됩니다(`KeepAlive`). 이 PC의 Hermes와 같은 방식입니다. LaunchDaemon(부팅 즉시)은 쓰지 않습니다: 보정(`claude`)이 사용자 키체인 로그인을, 음성 처리가 `~/.hermes`, whisper 모델 등 사용자 환경을 쓰기 때문입니다. 그래서 **재부팅 뒤 이 계정으로 로그인이 되어야** 시작됩니다(macOS 자동 로그인을 켜 두면 완전 자동, Hermes도 같은 조건).
+- 설치: 저장소 루트에서 `backend/deploy/install-launchd.sh <ngrok 고정 도메인>`(처음 한 번, 또는 경로·도메인이 바뀌었을 때 다시). 제거: `backend/deploy/install-launchd.sh --uninstall`. plist는 설치할 때 이 PC의 경로로 만들어 `~/Library/LaunchAgents/`에 두고(저장소에는 `backend/deploy/launchd/*.plist.template`만 있음) 고정 도메인과 토큰은 저장소에 넣지 않습니다.
+- 설치 스크립트는 도메인 형식(`https://` 없는 이름)과 경로(`& < > " ' | \` 문자 없음)를 launchd를 건드리기 전에 검사하고, 다시 실행해도 안전합니다(기존 서비스를 내린 뒤 올립니다).
+- 시작 스크립트(`backend/deploy/run-backend.sh`)는 Docker Desktop이 꺼져 있으면 켜고(이 PC는 Docker의 "로그인 때 자동 시작"이 꺼져 있어서), `iris-postgres`를 시작하고, PostgreSQL 포트(5433)가 열릴 때까지(기본 300초) 기다린 뒤 uvicorn을 띄웁니다. 기다려도 안 열리면 실패로 끝나서 launchd가 다시 시도합니다(`docker info`가 멈춰도 10초 제한으로 끊습니다). 포트가 열렸지만 PostgreSQL이 아직 준비되지 않아 백엔드가 시작에 실패하면 launchd가 10초 뒤 다시 시작해서 스스로 회복합니다.
+- 상태와 로그: `launchctl print gui/$(id -u)/com.iris.backend`(`state = running`이면 실행 중), `~/Library/Logs/iris/backend.log`, `tunnel.log`. 수동으로 내리려면 `launchctl bootout gui/$(id -u)/com.iris.backend`(다시 올릴 때는 `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.iris.backend.plist`). **수동으로 `uvicorn`을 띄우기 전에는 먼저 내려야** 포트(8000)가 겹치지 않습니다. 코드를 바꾼 뒤에는 `launchctl kickstart -k gui/$(id -u)/com.iris.backend`로 다시 시작합니다.
+- 알려진 한계: 로그 파일(`~/Library/Logs/iris/*.log`)은 자동으로 줄어들지 않습니다. 백엔드가 `.env`의 `JWT_SECRET` 등이 없으면 시작하지 못하고 10초마다 실패를 반복합니다(로그에서 확인).
 
 ### 마이그레이션 도구
 
