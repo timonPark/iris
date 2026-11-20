@@ -88,6 +88,8 @@ class FakeVoice:
         self.delay: float = delay
         self.probe: Callable[[], object] | None = probe  # 처리 도중에 호출해 상태를 기록한다
         self.probed: list[object] = []
+        self.active: int = 0  # 지금 처리 중인 녹음 수
+        self.max_active: int = 0  # 동시에 처리된 최대 수
         self.calls: list[Path] = []
         self.contents: list[bytes] = []  # 호출 시점에 파일이 실제로 있었는지, 무엇이 올라왔는지
 
@@ -96,8 +98,13 @@ class FakeVoice:
         self.contents.append(audio.read_bytes())
         if self.probe is not None:
             self.probed.append(self.probe())
-        if self.delay:
-            await asyncio.sleep(self.delay)
-        if self.error is not None:
-            raise self.error
-        return self.text
+        self.active += 1
+        self.max_active = max(self.max_active, self.active)
+        try:
+            if self.delay:
+                await asyncio.sleep(self.delay)
+            if self.error is not None:
+                raise self.error
+            return self.text
+        finally:
+            self.active -= 1

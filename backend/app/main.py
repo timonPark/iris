@@ -18,7 +18,7 @@ from app.hermes import ChatBackend, HermesError, create_hermes_client
 from app.runs import RunRegistry
 from app.sessions import router as sessions_router
 from app.tokens import require_jwt_secret
-from app.voice import ToolPipeline, default_tools
+from app.voice import ToolPipeline, VoiceQueue, default_tools, sweep_leftover_folders
 from app.voice_api import router as voice_router
 
 
@@ -46,6 +46,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.runs = RunRegistry()
     app.state.hermes = hermes_backend(settings)
     app.state.voice = ToolPipeline(default_tools(settings))
+    app.state.voice_queue = VoiceQueue()
+    await run_in_threadpool(sweep_leftover_folders)  # 폴더 탐색과 삭제가 이벤트 루프를 막지 않게
     try:
         # DB 조회와 argon2 해시는 이벤트 루프를 막으므로 스레드에서 실행한다.
         await run_in_threadpool(create_initial_admin, session_factory, settings)

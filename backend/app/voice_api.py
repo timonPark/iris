@@ -21,7 +21,7 @@ from app.errors import (
 )
 from app.models import Account, ChatSession
 from app.sessions import ensure_session_free, parse_session_id, submit_question
-from app.voice import VoicePipeline
+from app.voice import LEFTOVER_PREFIX, VoicePipeline, VoiceQueue
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ def save_upload(upload: UploadFile, target: Path) -> None:
 
 async def recognize(pipeline: VoicePipeline, upload: UploadFile) -> str:
     """녹음을 임시 폴더에 받아 질문 텍스트로 바꾼다. 성공하든 실패하든 처리가 끝나면 폴더째 지운다."""
-    with tempfile.TemporaryDirectory(prefix="iris-voice-") as folder:
+    with tempfile.TemporaryDirectory(prefix=LEFTOVER_PREFIX) as folder:
         audio: Path = Path(folder) / "upload.bin"
         await run_in_threadpool(save_upload, upload, audio)
         try:
@@ -83,5 +83,11 @@ async def send_voice_question(
         raise audio_too_long()
     account_id: uuid.UUID = account.id
     await reject_unusable_session(request, db, account_id, parsed)  # 오래 걸리는 처리 전에 먼저 거절한다
-    text: str = validate_question_text(await recognize(pipeline, audio))
+    queue: VoiceQueue = request.app.state.voice_queue
+    async with queue.turn():  # 음성 처리는 동시에 한 건. 나머지는 순서대로 기다린다
+        await reject_unusable_session(request, db, account_id, parsed)  # 기다리는 동안 세션이 바뀌었을 수 있다
+        if await request.is_disconnected():
+            logger.info("녹음을 보낸 클라이언트가 기다리는 동안 끊어서 처리하지 않는다")
+            raise voice_processing_failed()
+        text: str = validate_question_text(await recognize(pipeline, audio))
     return await submit_question(request, account_id, db, text, parsed, announce_text=True)
