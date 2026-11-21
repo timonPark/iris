@@ -4,7 +4,7 @@
 |---|---|
 | 이슈 | #3 (https://github.com/timonPark/iris/issues/3) |
 | 브랜치 | 2026-11-21-3-fe-web-sample-screens |
-| 상태 | 진행 중 |
+| 상태 | 검증 대기 |
 | 시작일자 | 2026-11-21 |
 | 종료일자 | |
 
@@ -48,6 +48,7 @@
 - 2026-11-21 사용자 요청으로 Aside 브라우저에서 확인(결과 참고).
 - 2026-11-21 사용자가 샘플을 그대로 승인. 아래 1~5는 샘플대로 확정: 좁은 화면 글자 크기는 제안대로, 로그아웃과 "새 세션" 버튼은 넣지 않음, 새로 쓴 문구 그대로, 레이아웃 토큰 그대로. 좁은 화면 글자 규칙은 `ssot/PRIMER.md` 3번 규칙에 반영했다.
 - 2026-11-21 코드 리뷰(codex, agy)를 받고 반영(결과 참고).
+- 2026-11-21 푸시가 403으로 거부됨. `gh` 활성 계정 `ParkJH0514`에 저장소 쓰기 권한이 없었다. 사용자 승인을 받고 `gh auth switch -u timonPark`로 바꾼 뒤 푸시하고 PR #58을 만들었다. 같은 계정으로 GitHub Project 상태(`In Progress`)와 `Start date`, `Target date`(2026-11-21)를 갱신했다. 앞서 Project 갱신이 실패한 것도 같은 원인이었다. 상태를 `검증 대기`로 변경.
 
 ### 검토에서 정할 것
 1. 좁은 화면의 글자 크기(`ssot/PRIMER.md`에서 샘플 검토로 미룬 항목). 샘플은 Primer 토큰 설명에 있는 규칙을 따랐다. `title-large`는 좁은 화면에서 `title-medium`으로 줄이고, 본문은 그대로 둔다. 질문, 답변, 입력칸은 Primer가 "사용자가 만든 내용"용으로 정한 `body-large`(16px)를 쓴다. 16px 미만이면 iOS Safari가 입력칸을 누를 때 화면을 확대하는데, 이것도 피할 수 있다.
@@ -62,6 +63,13 @@
 - `docs/samples/web/index.html` (신규)
 - `ssot/PRIMER.md` (좁은 화면 글자 크기 규칙 확정)
 - `work_history/2026-11-21-3-fe-web-sample-screens.md` (신규)
+
+### PR
+- https://github.com/timonPark/iris/pull/58
+
+### 남은 일
+- 관리자 웹 샘플(#4), 모바일 앱 샘플(#5)을 `docs/samples/admin/`, `docs/samples/mobile/`에 두고, `ssot/PRIMER.md`의 좁은 화면 글자 규칙을 따른다(제안).
+- 로그아웃과 "새 세션" 버튼은 이번에 넣지 않기로 했다. 필요해지면 `ssot/`에 정의를 먼저 추가한다.
 
 ### 코드 리뷰 반영 내역
 - codex(`codex review --uncommitted`): 지적 없음.
