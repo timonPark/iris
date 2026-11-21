@@ -47,6 +47,16 @@ npm run gen:api                 # docs/api/openapi.yaml → src/api/schema.d.ts 
 - 규격이 바뀌면 `npm run gen:api`로 `src/api/schema.d.ts`를 다시 만들어 함께 커밋합니다. 이 파일은 손으로 고치지 않습니다.
 - SSE(질문 전송)는 `openapi-fetch`로 받지 않습니다. 처리 방법은 채팅 화면(#24)에서 만듭니다.
 
+### 로그인 상태와 화면 전환 (#18)
+
+- 로그인 상태는 `localStorage`의 `iris.auth`(`src/auth/storage.ts`)가 기준입니다: `accessToken`, `passwordChangeRequired`, `loginId`. 브라우저를 닫아도 유지되고 로그아웃 버튼은 없습니다.
+- 화면 전환은 라우터 없이 `src/auth/useAuthFlow.ts`의 상태(`login`, `force-change`, `chat`, `settings`)로 합니다.
+- 어느 API에서 받든 `UNAUTHORIZED`·`ACCOUNT_BLOCKED`면 토큰을 지우고 로그인 화면(안내 표시), `PASSWORD_CHANGE_REQUIRED`면 강제 변경 화면으로 갑니다. `createApiClient`의 `onAuthError`가 한 곳에서 처리하므로 화면마다 따로 처리하지 않습니다.
+- 관리자 계정은 로그인 응답의 `role`로 막습니다(`../ssot/GLOSSARY.md` "사용자 앱").
+- 화면 문구는 `src/auth/messages.ts`에 모읍니다. 오류는 규격의 `message`를 그대로 쓰고, 연결 실패(응답 없음)는 "서버 오류가 발생했습니다."입니다.
+- 폼은 응답을 기다리는 동안 다시 제출되지 않게 막습니다. Primer `Button`의 `loading`은 `aria-disabled`만 붙이고 제출을 막지 않습니다.
+- 테스트는 `src/test/fakeApi.ts`(경로별 응답을 정하는 가짜 fetch)를 씁니다.
+
 ### Primer와 테마
 
 - `@primer/react` 38.46.0, `@primer/primitives` 11.10.0을 정확한 버전으로 고정합니다. 버전을 올릴 때는 `../ssot/PRIMER.md`를 따릅니다(관리자 웹, 모바일과 함께).

@@ -1,16 +1,27 @@
 import type { JSX } from 'react'
-import { BaseStyles, Heading, Text } from '@primer/react'
+import { BaseStyles } from '@primer/react'
 import { ThemeProvider } from '@primer/react/next'
+import { useAuthFlow, type AuthFlow } from './auth/useAuthFlow'
+import { ChatPlaceholder } from './screens/ChatPlaceholder'
+import { ForceChangeScreen } from './screens/ForceChangeScreen'
+import { LoginScreen } from './screens/LoginScreen'
+import { SettingsScreen } from './screens/SettingsScreen'
 
-/** 화면은 #18(로그인), #24(채팅)에서 만든다. 지금은 Primer 테마 확인용 자리다. */
-export default function App(): JSX.Element {
+export interface AppProps {
+  /** 테스트에서 가짜 fetch를 넣는다. */
+  fetch?: typeof fetch
+}
+
+export default function App({ fetch }: AppProps): JSX.Element {
+  const { screen, notice, client, loggedIn, passwordChanged, go }: AuthFlow = useAuthFlow(fetch)
+
   return (
     <ThemeProvider colorMode="auto" dayScheme="light" nightScheme="dark" contextOnly>
-      <BaseStyles>
-        <main className="app">
-          <Heading as="h1">Iris</Heading>
-          <Text as="p">사용자 웹 준비 중입니다.</Text>
-        </main>
+      <BaseStyles className="root">
+        {screen === 'login' && <LoginScreen client={client} notice={notice} onLoggedIn={loggedIn} />}
+        {screen === 'force-change' && <ForceChangeScreen client={client} onChanged={passwordChanged} />}
+        {screen === 'chat' && <ChatPlaceholder onOpenSettings={(): void => go('settings')} />}
+        {screen === 'settings' && <SettingsScreen client={client} onChanged={passwordChanged} />}
       </BaseStyles>
     </ThemeProvider>
   )

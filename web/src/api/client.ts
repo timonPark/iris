@@ -3,14 +3,30 @@ import createClient, {
   type Middleware,
   type MiddlewareCallbackParams,
 } from 'openapi-fetch'
-import type { paths } from './schema'
+import type { components, paths } from './schema'
 
 export type ApiClient = Client<paths>
+export type ErrorCode = components['schemas']['ErrorCode']
+export type ErrorResponse = components['schemas']['ErrorResponse']
+
+/** 어느 API에서 받든 로그인 상태를 바꿔야 하는 오류. */
+export type AuthErrorCode = Extract<
+  ErrorCode,
+  'UNAUTHORIZED' | 'ACCOUNT_BLOCKED' | 'PASSWORD_CHANGE_REQUIRED'
+>
+
+const AUTH_ERROR_CODES: readonly AuthErrorCode[] = [
+  'UNAUTHORIZED',
+  'ACCOUNT_BLOCKED',
+  'PASSWORD_CHANGE_REQUIRED',
+]
 
 export interface ApiClientOptions {
   baseUrl: string
   /** 저장된 accessToken. 없으면 null(로그인 전). */
   getAccessToken: () => string | null
+  /** UNAUTHORIZED, ACCOUNT_BLOCKED, PASSWORD_CHANGE_REQUIRED 응답을 받으면 호출한다. */
+  onAuthError?: (code: AuthErrorCode) => void
   fetch?: typeof fetch
 }
 
@@ -21,6 +37,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     fetch: options.fetch,
   })
   client.use(commonHeaders(options.getAccessToken))
+  if (options.onAuthError !== undefined) {
+    client.use(authErrors(options.onAuthError))
+  }
   return client
 }
 
@@ -35,5 +54,30 @@ function commonHeaders(getAccessToken: () => string | null): Middleware {
       }
       return request
     },
+  }
+}
+
+function authErrors(onAuthError: (code: AuthErrorCode) => void): Middleware {
+  return {
+    async onResponse({ response }: MiddlewareCallbackParams & { response: Response }): Promise<undefined> {
+      if (response.status !== 401 && response.status !== 403) {
+        return undefined
+      }
+      const code: string | null = await readErrorCode(response.clone())
+      const match: AuthErrorCode | undefined = AUTH_ERROR_CODES.find((c: AuthErrorCode) => c === code)
+      if (match !== undefined) {
+        onAuthError(match)
+      }
+      return undefined
+    },
+  }
+}
+
+async function readErrorCode(response: Response): Promise<string | null> {
+  try {
+    const body: ErrorResponse = (await response.json()) as ErrorResponse
+    return body.error.code
+  } catch {
+    return null
   }
 }

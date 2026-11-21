@@ -1,10 +1,60 @@
-/* 색, 간격, 글자는 Primer 토큰만 쓴다(ssot/PRIMER.md). */
+/* 색, 간격, 글자는 Primer 토큰만 쓴다(ssot/PRIMER.md). 화면 모양은 샘플 docs/samples/web/index.html(#3)을 따른다. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
 body {
-  margin: 0;
   background-color: var(--bgColor-default);
   color: var(--fgColor-default);
+  font: var(--text-body-shorthand-medium);
 }
+.root { height: 100%; display: flex; }
 
-.app {
-  padding: var(--stack-padding-spacious);
+/* 입력칸 글자는 16px(body-large). Primer TextInput은 넓은 화면에서 14px로 줄이므로 덮어쓴다.
+   16px 미만이면 iOS Safari가 입력칸을 누를 때 화면을 확대한다. */
+body .field-input { font: var(--text-body-shorthand-large); }
+
+/* 안내 상자: 아이콘과 문장을 한 줄에 */
+.form-flash { display: flex; align-items: flex-start; gap: var(--space-sm); }
+.form-flash svg { flex: none; margin-top: var(--space-xxs); }
+.form-flash p { margin: 0; }
+
+/* ---------- 로그인과 비밀번호 강제 변경 ---------- */
+.auth {
+  flex: 1; display: flex; overflow: auto;
+  padding: var(--stack-padding-spacious) var(--stack-padding-normal);
+}
+/* margin: auto로 가운데 둔다. 화면이 카드보다 낮으면 위쪽부터 보이고 스크롤할 수 있다(align-items: center는 위쪽이 잘린다). */
+.auth__card { margin: auto; width: 100%; max-width: var(--overlay-width-small); display: flex; flex-direction: column; gap: var(--stack-gap-normal); }
+.auth__brand { margin: 0; text-align: center; font: var(--text-title-shorthand-large); }
+.auth__title { margin: 0; font: var(--text-title-shorthand-medium); }
+.auth__desc { margin: 0; color: var(--fgColor-muted); }
+.auth__note { margin: 0; text-align: center; font: var(--text-body-shorthand-small); color: var(--fgColor-muted); }
+
+/* ---------- 로그인 뒤 본문 (사이드바는 #24) ---------- */
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  display: flex; align-items: center; gap: var(--space-sm); min-height: var(--control-large-size);
+  padding: var(--stack-padding-condensed) var(--stack-padding-normal);
+  border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted);
+}
+.topbar__title { margin: 0; min-width: 0; font: var(--text-title-shorthand-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-sm); padding: var(--stack-padding-spacious); text-align: center;
+}
+.empty__desc { margin: 0; color: var(--fgColor-muted); }
+
+/* ---------- 설정 ---------- */
+.page { flex: 1; overflow: auto; padding: var(--stack-padding-spacious) var(--stack-padding-normal); }
+.panel {
+  max-width: var(--overlay-width-medium); margin: 0 auto; display: flex; flex-direction: column; gap: var(--stack-gap-normal);
+  padding: var(--stack-padding-normal); border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+}
+.panel__title { margin: 0; font: var(--text-title-shorthand-small); }
+.panel__actions { display: flex; justify-content: flex-end; }
+
+/* ---------- 좁은 화면 ----------
+   미디어 쿼리 조건에는 CSS 변수를 쓸 수 없어서 값을 직접 쓴다. 48rem = var(--breakpoint-medium) */
+@media (max-width: 48rem) {
+  .auth__brand { font: var(--text-title-shorthand-medium); }
 }
