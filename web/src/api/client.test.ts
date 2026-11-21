@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createApiClient, type ApiClient } from './client'
+import { createApiClient, type ApiClient, type AuthErrorCode } from './client'
 import type { components } from './schema'
 
 type ErrorBody = components['schemas']['ErrorResponse']
@@ -66,5 +66,47 @@ describe('createApiClient', () => {
     const { error } = await client.GET('/api/v1/sessions')
 
     expect(error?.error.code).toBe('ACCOUNT_BLOCKED')
+  })
+
+  it.each([
+    [401, 'UNAUTHORIZED'],
+    [403, 'ACCOUNT_BLOCKED'],
+    [403, 'PASSWORD_CHANGE_REQUIRED'],
+  ] as const)('%i %s 응답이면 onAuthError로 알린다', async (status, code) => {
+    const captured: Captured = { request: null }
+    const seen: string[] = []
+    const client: ApiClient = createApiClient({
+      baseUrl: 'http://localhost:8000',
+      getAccessToken: (): string | null => 'token',
+      onAuthError: (c: AuthErrorCode): void => {
+        seen.push(c)
+      },
+      fetch: fakeFetch(captured, jsonResponse(status, { error: { code, message: 'm' } })),
+    })
+
+    const { error } = await client.GET('/api/v1/sessions')
+
+    expect(seen).toEqual([code])
+    expect(error?.error.code).toBe(code)
+  })
+
+  it('다른 오류(아이디·비밀번호 틀림 등)는 onAuthError로 알리지 않는다', async () => {
+    const captured: Captured = { request: null }
+    const seen: string[] = []
+    const body: ErrorBody = {
+      error: { code: 'INVALID_CREDENTIALS', message: '아이디 또는 비밀번호가 올바르지 않습니다.' },
+    }
+    const client: ApiClient = createApiClient({
+      baseUrl: 'http://localhost:8000',
+      getAccessToken: (): string | null => null,
+      onAuthError: (c: AuthErrorCode): void => {
+        seen.push(c)
+      },
+      fetch: fakeFetch(captured, jsonResponse(401, body)),
+    })
+
+    await client.POST('/api/v1/auth/login', { body: { loginId: 'a', password: 'b' } })
+
+    expect(seen).toEqual([])
   })
 })
