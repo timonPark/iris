@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="ko" data-color-mode="light" data-light-theme="light" data-dark-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iris 관리자 웹 샘플</title>
+<!-- 관리자 웹 샘플 화면 (#4). 실제 동작은 없다. 토큰은 ssot/PRIMER.md의 고정 버전을 쓴다. 공통 부분(버튼, 입력, 안내, 대화상자, 샘플 도구)은 사용자 웹 샘플(#3)과 같다. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@primer/primitives@11.10.0/dist/css/primitives.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@primer/primitives@11.10.0/dist/css/functional/themes/light.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@primer/primitives@11.10.0/dist/css/functional/themes/dark.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; flex-direction: column;
+    background: var(--bgColor-inset); color: var(--fgColor-default);
+    font: var(--text-body-shorthand-medium);
+  }
+  button, input { color: inherit; }
+  .icon { width: var(--base-size-16); height: var(--base-size-16); flex: none; }
+
+  /* ---------- 샘플 도구 (실제 화면에는 없다) ---------- */
+  .tools {
+    display: flex; flex-direction: column; gap: var(--space-sm);
+    padding: var(--stack-padding-condensed) var(--stack-padding-normal);
+    background: var(--bgColor-muted); color: var(--fgColor-default);
+    border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+  }
+  .tools__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
+  .tools__name { font: var(--text-body-shorthand-small); font-weight: var(--base-text-weight-semibold); }
+  .tools__group { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+  .tools__desc { margin: 0; font: var(--text-body-shorthand-small); }
+  .chip {
+    padding: var(--space-xxs) var(--space-sm);
+    border: var(--borderWidth-thin) solid var(--button-default-borderColor-rest);
+    border-radius: var(--borderRadius-full);
+    background: var(--button-default-bgColor-rest); color: var(--button-default-fgColor-rest);
+    font: var(--text-body-shorthand-small); cursor: pointer;
+    transition: background-color var(--motion-transition-hover);
+  }
+  .chip:hover { background: var(--button-default-bgColor-hover); }
+  .chip:active { background: var(--button-default-bgColor-active); }
+  .chip:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-outline-offset); }
+  .chip[aria-pressed="true"] {
+    background: var(--bgColor-accent-emphasis); color: var(--fgColor-onEmphasis);
+    border-color: var(--borderColor-accent-emphasis);
+  }
+
+  .stage { flex: 1; min-height: 0; display: flex; justify-content: center; }
+  .stage[data-width="narrow"] { padding: var(--stack-padding-normal); }
+  .frame {
+    container: app / inline-size;
+    position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden;
+    background: var(--bgColor-default);
+  }
+  .stage[data-width="narrow"] .frame {
+    width: var(--breakpoint-xsmall);
+    border: var(--borderWidth-thin) solid var(--borderColor-default);
+    border-radius: var(--borderRadius-large); box-shadow: var(--shadow-resting-medium);
+  }
+
+  /* ---------- 버튼 ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--control-medium-gap);
+    min-height: var(--control-medium-size); padding: 0 var(--control-medium-paddingInline-normal);
+    border: var(--borderWidth-thin) solid var(--button-default-borderColor-rest);
+    border-radius: var(--borderRadius-medium);
+    background: var(--button-default-bgColor-rest); color: var(--button-default-fgColor-rest);
+    font: var(--text-body-shorthand-medium); font-weight: var(--base-text-weight-semibold);
+    cursor: pointer; white-space: nowrap;
+    transition: background-color var(--motion-transition-hover), border-color var(--motion-transition-hover);
+  }
+  .btn:hover { background: var(--button-default-bgColor-hover); border-color: var(--button-default-borderColor-hover); }
+  .btn:active { background: var(--button-default-bgColor-active); border-color: var(--button-default-borderColor-active); }
+  .btn:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-outline-offset); }
+  .btn:disabled {
+    background: var(--button-default-bgColor-disabled); color: var(--button-default-fgColor-disabled);
+    border-color: var(--button-default-borderColor-disabled); cursor: not-allowed;
+  }
+  .btn--primary {
+    background: var(--button-primary-bgColor-rest); color: var(--button-primary-fgColor-rest);
+    border-color: var(--button-primary-borderColor-rest);
+  }
+  .btn--primary:hover { background: var(--button-primary-bgColor-hover); border-color: var(--button-primary-borderColor-hover); }
+  .btn--primary:active { background: var(--button-primary-bgColor-active); border-color: var(--button-primary-borderColor-active); }
+  .btn--primary:disabled {
+    background: var(--button-primary-bgColor-disabled); color: var(--button-primary-fgColor-disabled);
+    border-color: var(--button-primary-borderColor-disabled);
+  }
+  .btn--danger {
+    background: var(--button-danger-bgColor-rest); color: var(--button-danger-fgColor-rest);
+    border-color: var(--button-danger-borderColor-rest);
+  }
+  .btn--danger:hover {
+    background: var(--button-danger-bgColor-hover); color: var(--button-danger-fgColor-hover);
+    border-color: var(--button-danger-borderColor-hover);
+  }
+  .btn--danger:active {
+    background: var(--button-danger-bgColor-active); color: var(--button-danger-fgColor-active);
+    border-color: var(--button-danger-borderColor-active);
+  }
+  .btn--danger:disabled {
+    background: var(--button-danger-bgColor-disabled); color: var(--button-danger-fgColor-disabled);
+    border-color: var(--button-default-borderColor-disabled);
+  }
+  .btn--small {
+    min-height: var(--control-small-size); padding: 0 var(--control-small-paddingInline-normal);
+    font: var(--text-body-shorthand-small); font-weight: var(--base-text-weight-semibold);
+  }
+  .btn--block { width: 100%; min-height: var(--control-large-size); }
+
+  /* ---------- 입력 ---------- */
+  .field { display: flex; flex-direction: column; gap: var(--space-xs); }
+  .field__label { font: var(--text-body-shorthand-medium); font-weight: var(--base-text-weight-semibold); }
+  .field__hint { font: var(--text-body-shorthand-small); color: var(--fgColor-muted); }
+  .field__error { display: flex; align-items: center; gap: var(--space-xs); font: var(--text-body-shorthand-small); color: var(--fgColor-danger); }
+  .input {
+    min-height: var(--control-large-size); padding: 0 var(--control-large-paddingInline-normal);
+    border: var(--borderWidth-thin) solid var(--borderColor-default); border-radius: var(--borderRadius-medium);
+    background: var(--bgColor-default); font: var(--text-body-shorthand-large);
+    transition: border-color var(--motion-transition-hover);
+  }
+  .input:hover { border-color: var(--borderColor-emphasis); }
+  .input:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-outline-offset); }
+  .input:disabled {
+    background: var(--bgColor-disabled); color: var(--fgColor-disabled);
+    border-color: var(--borderColor-disabled); cursor: not-allowed;
+  }
+  .input[aria-invalid="true"] { border-color: var(--borderColor-danger-emphasis); }
+
+  /* ---------- 안내 ---------- */
+  .flash {
+    display: flex; align-items: flex-start; gap: var(--space-sm);
+    padding: var(--stack-padding-condensed) var(--stack-padding-normal);
+    border: var(--borderWidth-thin) solid var(--borderColor-danger-muted); border-radius: var(--borderRadius-medium);
+    background: var(--bgColor-danger-muted); color: var(--fgColor-default);
+  }
+  .flash .icon { margin-top: var(--space-xxs); color: var(--fgColor-danger); }
+  .flash p { margin: 0; }
+  .flash--attention { border-color: var(--borderColor-attention-muted); background: var(--bgColor-attention-muted); }
+  .flash--attention .icon { color: var(--fgColor-attention); }
+
+  .label {
+    display: inline-flex; align-items: center; padding: 0 var(--space-sm);
+    border: var(--borderWidth-thin) solid var(--borderColor-default); border-radius: var(--borderRadius-full);
+    font: var(--text-body-shorthand-small); white-space: nowrap;
+  }
+  .label--success { border-color: var(--borderColor-success-emphasis); color: var(--fgColor-success); }
+  .label--danger { border-color: var(--borderColor-danger-emphasis); color: var(--fgColor-danger); }
+  .label--attention { border-color: var(--borderColor-attention-emphasis); color: var(--fgColor-attention); }
+
+  /* ---------- 로그인 ---------- */
+  .auth {
+    flex: 1; display: flex; overflow: auto;
+    padding: var(--stack-padding-spacious) var(--stack-padding-normal);
+  }
+  .auth__card { margin: auto; width: 100%; max-width: var(--overlay-width-small); display: flex; flex-direction: column; gap: var(--stack-gap-normal); }
+  .auth__brand { margin: 0; text-align: center; font: var(--text-title-shorthand-large); }
+  .auth__sub { margin: 0; text-align: center; color: var(--fgColor-muted); }
+
+  /* ---------- 관리자 화면 틀 ---------- */
+  .header {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+    min-height: var(--control-large-size); padding: var(--stack-padding-condensed) var(--stack-padding-normal);
+    background: var(--bgColor-muted); border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+  }
+  .header__brand { margin: 0; font: var(--text-title-shorthand-small); }
+  .header__user { color: var(--fgColor-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .page { flex: 1; overflow: auto; padding: var(--stack-padding-spacious) var(--stack-padding-normal); }
+  .page__inner { max-width: var(--breakpoint-large); margin: 0 auto; display: flex; flex-direction: column; gap: var(--stack-gap-normal); }
+  .page__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; }
+  .page__title { margin: 0; font: var(--text-title-shorthand-medium); }
+
+  /* ---------- 사용자 계정 목록 ---------- */
+  .card { border: var(--borderWidth-thin) solid var(--borderColor-default); border-radius: var(--borderRadius-medium); overflow: hidden; }
+  .table { width: 100%; border-collapse: collapse; }
+  .table th {
+    padding: var(--space-sm) var(--space-md); text-align: left;
+    background: var(--bgColor-muted); color: var(--fgColor-default);
+    font: var(--text-body-shorthand-small); font-weight: var(--base-text-weight-semibold);
+    border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+  }
+  .table td, .table tbody th { padding: var(--space-sm) var(--space-md); border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted); vertical-align: middle; }
+  .table tbody th { background: transparent; text-align: left; font: var(--text-body-shorthand-medium); }
+  .table tr:last-child td, .table tr:last-child th { border-bottom: 0; }
+  .table tbody .table__id { font-weight: var(--base-text-weight-semibold); }
+  .table__muted { color: var(--fgColor-muted); }
+  .table__actions { display: flex; justify-content: flex-end; gap: var(--space-xs); }
+  .table th:last-child { text-align: right; }
+  .list-foot { display: flex; justify-content: center; }
+  .empty {
+    display: flex; flex-direction: column; align-items: center; gap: var(--space-sm);
+    padding: var(--stack-padding-spacious); text-align: center;
+  }
+  .empty__title { margin: 0; font: var(--text-title-shorthand-small); }
+  .empty__desc { margin: 0; color: var(--fgColor-muted); }
+
+  /* ---------- 대화상자 ---------- */
+  .backdrop {
+    position: absolute; inset: 0; z-index: var(--zIndex-modal);
+    display: flex; align-items: center; justify-content: center; padding: var(--stack-padding-normal);
+    background: var(--overlay-backdrop-bgColor);
+  }
+  .dialog {
+    width: 100%; max-width: var(--overlay-width-small); display: flex; flex-direction: column; gap: var(--stack-gap-normal);
+    padding: var(--overlay-padding-normal); border: var(--borderWidth-thin) solid var(--overlay-borderColor);
+    border-radius: var(--overlay-borderRadius); background: var(--overlay-bgColor); box-shadow: var(--shadow-floating-large);
+  }
+  .dialog--wide { max-width: var(--overlay-width-medium); }
+  .dialog__title { margin: 0; font: var(--text-title-shorthand-small); }
+  .dialog__body { margin: 0; }
+  .dialog__actions { display: flex; justify-content: flex-end; gap: var(--space-sm); }
+
+  /* 임시 비밀번호: 한 번만 보여 준다. 헷갈리는 글자를 뺀 12자라 고정폭 글꼴로 크게 */
+  .secret { display: flex; flex-direction: column; gap: var(--space-xs); }
+  .secret__label { font: var(--text-body-shorthand-small); color: var(--fgColor-muted); }
+  .secret__row {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md); border: var(--borderWidth-thin) solid var(--borderColor-default);
+    border-radius: var(--borderRadius-medium); background: var(--bgColor-muted);
+  }
+  .secret__value { font-family: var(--fontStack-monospace); font-size: var(--text-title-size-medium); letter-spacing: var(--base-size-2); user-select: all; }
+  .secret__id { font-weight: var(--base-text-weight-semibold); }
+
+  /* ---------- 좁은 화면 ----------
+     컨테이너 쿼리 조건에는 CSS 변수를 쓸 수 없어서 값을 직접 쓴다. 48rem = var(--breakpoint-medium) */
+  @container app (max-width: 48rem) {
+    .auth__brand { font: var(--text-title-shorthand-medium); }
+    .page__title { font: var(--text-title-shorthand-small); }
+    /* 표를 계정마다 한 장씩 쌓는다. 칸 이름은 data-label로 보여 준다. */
+    .table thead { display: none; }
+    .table tr { display: flex; flex-direction: column; gap: var(--space-xs); padding: var(--space-md); border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted); }
+    .table tr:last-child { border-bottom: 0; }
+    .table td, .table tbody th { display: flex; justify-content: space-between; gap: var(--space-sm); padding: 0; border: 0; }
+    .table td[data-label]::before { content: attr(data-label); color: var(--fgColor-muted); font: var(--text-body-shorthand-small); }
+    .table__actions { justify-content: flex-start; padding-top: var(--space-xs); }
+    .header__user { display: none; }
+    .secret__value { font-size: var(--text-title-size-small); letter-spacing: normal; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 아이콘 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-alert" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8L1.2 13.8h13.6z"/><path d="M8 6.3v3.4M8 11.6v.1"/></g></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.5A1 1 0 0 0 9.5 2.5h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/></g></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<header class="tools" aria-label="샘플 도구">
+  <div class="tools__row">
+    <span class="tools__name">화면</span>
+    <div class="tools__group">
+      <button class="chip" data-group="screen" data-value="login" data-desc="관리자 계정으로 로그인한다. 관리자 계정은 설정으로만 만든다.">로그인</button>
+      <button class="chip" data-group="screen" data-value="login-not-admin" data-desc="사용자 계정으로 로그인하면 토큰을 저장하지 않고 안내한다(사용자 웹의 반대). 아이디나 비밀번호가 틀리면 같은 자리에 규격의 문구가 나온다.">관리자 아님</button>
+      <button class="chip" data-group="screen" data-value="users" data-desc="사용자 계정 목록. 최근 등록 순으로 20개씩 받고 '더 보기'로 이어 받는다. 검색은 없다.">계정 목록</button>
+      <button class="chip" data-group="screen" data-value="users-empty" data-desc="아직 등록한 사용자 계정이 없을 때.">빈 목록</button>
+      <button class="chip" data-group="screen" data-value="users-error" data-desc="목록을 받지 못했을 때(서버 오류).">목록 오류</button>
+      <button class="chip" data-group="screen" data-value="create" data-desc="아이디만 입력한다. 비밀번호는 시스템이 만든다.">계정 등록</button>
+      <button class="chip" data-group="screen" data-value="create-taken" data-desc="이미 있는 아이디(LOGIN_ID_TAKEN). 형식이 틀리면(VALIDATION_FAILED) 같은 자리에 규격의 문구가 나온다.">등록: 아이디 중복</button>
+      <button class="chip" data-group="screen" data-value="create-done" data-desc="등록하면 임시 비밀번호를 한 번만 보여 준다. 닫으면 다시 볼 수 없다.">등록: 임시 비밀번호</button>
+      <button class="chip" data-group="screen" data-value="block" data-desc="차단은 확인을 받는다. 해제는 확인 없이 바로 한다(되돌리기 쉬우므로).">차단 확인</button>
+      <button class="chip" data-group="screen" data-value="reset" data-desc="비밀번호 초기화는 확인을 받는다. 지금 비밀번호와 로그인 중인 화면이 모두 무효가 된다.">초기화 확인</button>
+      <button class="chip" data-group="screen" data-value="reset-done" data-desc="초기화하면 새 임시 비밀번호를 한 번만 보여 준다. 차단된 계정도 초기화할 수 있고 차단은 그대로이다.">초기화: 임시 비밀번호</button>
+    </div>
+  </div>
+  <div class="tools__row">
+    <span class="tools__name">테마</span>
+    <div class="tools__group">
+      <button class="chip" data-group="theme" data-value="light">라이트</button>
+      <button class="chip" data-group="theme" data-value="dark">다크</button>
+    </div>
+    <span class="tools__name">너비</span>
+    <div class="tools__group">
+      <button class="chip" data-group="width" data-value="wide">넓은 화면</button>
+      <button class="chip" data-group="width" data-value="narrow">좁은 화면</button>
+    </div>
+  </div>
+  <p class="tools__desc" id="screen-desc"></p>
+</header>
+
+<main class="stage" data-width="wide">
+  <div class="frame">
+
+    <!-- ===== 로그인 ===== -->
+    <section class="auth" data-for="login login-not-admin">
+      <form class="auth__card" onsubmit="return false">
+        <h1 class="auth__brand">Iris</h1>
+        <p class="auth__sub">관리자 웹</p>
+        <div class="flash" role="alert" data-for="login-not-admin">
+          <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+          <p>관리자 계정만 로그인할 수 있습니다.</p>
+        </div>
+        <label class="field">
+          <span class="field__label">아이디</span>
+          <input class="input" type="text" autocomplete="username">
+        </label>
+        <label class="field">
+          <span class="field__label">비밀번호</span>
+          <input class="input" type="password" autocomplete="current-password">
+        </label>
+        <button class="btn btn--primary btn--block" type="button" data-goto="users">로그인</button>
+      </form>
+    </section>
+
+    <!-- ===== 관리자 화면 ===== -->
+    <div class="header" data-for="users users-empty users-error create create-taken create-done block reset reset-done">
+      <h1 class="header__brand">Iris 관리자</h1>
+      <span class="header__user">admin</span>
+    </div>
+
+    <div class="page" data-for="users users-empty users-error create create-taken create-done block reset reset-done">
+      <div class="page__inner">
+        <div class="page__head">
+          <h2 class="page__title">사용자 계정</h2>
+          <button class="btn btn--primary" type="button" data-goto="create"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>계정 등록</button>
+        </div>
+
+        <!-- 목록 -->
+        <div class="card" data-for="users create create-taken create-done block reset reset-done">
+          <table class="table">
+            <thead>
+              <tr><th scope="col">아이디</th><th scope="col">상태</th><th scope="col">비밀번호</th><th scope="col">등록일</th><th scope="col">작업</th></tr>
+            </thead>
+            <tbody>
+              <tr data-for="create-done">
+                <th scope="row" class="table__id">kimdh</th>
+                <td data-label="상태"><span class="label label--success">활성</span></td>
+                <td data-label="비밀번호"><span class="label label--attention">임시 비밀번호</span></td>
+                <td data-label="등록일" class="table__muted">2026-11-21</td>
+                <td><div class="table__actions"><button class="btn btn--small" type="button" aria-label="kimdh 차단" data-goto="block">차단</button><button class="btn btn--small" type="button" aria-label="kimdh 비밀번호 초기화" data-goto="reset">비밀번호 초기화</button></div></td>
+              </tr>
+              <tr>
+                <th scope="row" class="table__id">jhpark</th>
+                <td data-label="상태"><span class="label label--success">활성</span></td>
+                <td data-label="비밀번호" class="table__muted">설정함</td>
+                <td data-label="등록일" class="table__muted">2026-11-20</td>
+                <td><div class="table__actions"><button class="btn btn--small" type="button" aria-label="jhpark 차단" data-goto="block">차단</button><button class="btn btn--small" type="button" aria-label="jhpark 비밀번호 초기화" data-goto="reset">비밀번호 초기화</button></div></td>
+              </tr>
+              <tr>
+                <th scope="row" class="table__id">leesy</th>
+                <td data-label="상태"><span class="label label--danger">차단 중</span></td>
+                <td data-label="비밀번호" class="table__muted">설정함</td>
+                <td data-label="등록일" class="table__muted">2026-11-18</td>
+                <td><div class="table__actions"><button class="btn btn--small" type="button" aria-label="leesy 차단 해제">차단 해제</button><button class="btn btn--small" type="button" aria-label="leesy 비밀번호 초기화" data-goto="reset">비밀번호 초기화</button></div></td>
+              </tr>
+              <tr>
+                <th scope="row" class="table__id">choiyj</th>
+                <td data-label="상태"><span class="label label--success">활성</span></td>
+                <td data-label="비밀번호"><span class="label label--attention">임시 비밀번호</span></td>
+                <td data-label="등록일" class="table__muted">2026-11-17</td>
+                <td><div class="table__actions"><button class="btn btn--small" type="button" aria-label="choiyj 차단" data-goto="block">차단</button><button class="btn btn--small" type="button" aria-label="choiyj 비밀번호 초기화" data-goto="reset">비밀번호 초기화</button></div></td>
+              </tr>
+              <tr>
+                <th scope="row" class="table__id">hanms</th>
+                <td data-label="상태"><span class="label label--success">활성</span></td>
+                <td data-label="비밀번호" class="table__muted">설정함</td>
+                <td data-label="등록일" class="table__muted">2026-11-17</td>
+                <td><div class="table__actions"><button class="btn btn--small" type="button" aria-label="hanms 차단" data-goto="block">차단</button><button class="btn btn--small" type="button" aria-label="hanms 비밀번호 초기화" data-goto="reset">비밀번호 초기화</button></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="list-foot" data-for="users create create-taken create-done block reset reset-done">
+          <button class="btn" type="button">더 보기</button>
+        </div>
+
+        <!-- 빈 목록 -->
+        <div class="card" data-for="users-empty">
+          <div class="empty">
+            <p class="empty__title">등록한 사용자 계정이 없습니다</p>
+            <p class="empty__desc">계정을 등록하면 임시 비밀번호가 만들어집니다. 사용자에게 아이디와 함께 전달해 주세요.</p>
+          </div>
+        </div>
+
+        <!-- 목록 오류 -->
+        <div class="flash" role="alert" data-for="users-error">
+          <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+          <p>서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</p>
+        </div>
+        <div data-for="users-error"><button class="btn" type="button" data-goto="users">다시 시도</button></div>
+      </div>
+    </div>
+
+    <!-- ===== 계정 등록 ===== -->
+    <div class="backdrop" data-for="create create-taken">
+      <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="create-title" onsubmit="return false">
+        <h2 class="dialog__title" id="create-title">사용자 계정 등록</h2>
+        <label class="field" data-for="create">
+          <span class="field__label">아이디</span>
+          <input class="input" type="text" autocomplete="off" aria-describedby="create-hint">
+          <span class="field__hint" id="create-hint">영문 소문자와 숫자 4~20자</span>
+        </label>
+        <label class="field" data-for="create-taken">
+          <span class="field__label">아이디</span>
+          <input class="input" type="text" autocomplete="off" value="jhpark" aria-invalid="true" aria-describedby="create-error create-taken-hint">
+          <span class="field__error" id="create-error"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>이미 사용 중인 아이디입니다.</span>
+          <span class="field__hint" id="create-taken-hint">영문 소문자와 숫자 4~20자</span>
+        </label>
+        <p class="dialog__body field__hint">비밀번호는 시스템이 만들어 다음 화면에 한 번만 보여 줍니다.</p>
+        <div class="dialog__actions">
+          <button class="btn" type="button" data-goto="users">취소</button>
+          <button class="btn btn--primary" type="button" data-goto="create-done">등록</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ===== 임시 비밀번호 (등록, 초기화 공통) ===== -->
+    <div class="backdrop" data-for="create-done reset-done">
+      <div class="dialog dialog--wide" id="secret-dialog" role="dialog" aria-modal="true" aria-labelledby="secret-title">
+        <h2 class="dialog__title" id="secret-title" data-for="create-done">계정을 등록했습니다</h2>
+        <h2 class="dialog__title" id="secret-title-reset" data-for="reset-done">비밀번호를 초기화했습니다</h2>
+        <div class="flash flash--attention">
+          <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+          <p>임시 비밀번호는 지금만 볼 수 있습니다. 창을 닫기 전에 사용자에게 전달해 주세요.</p>
+        </div>
+        <div class="secret">
+          <span class="secret__label">아이디</span>
+          <span class="secret__id" data-for="create-done">kimdh</span>
+          <span class="secret__id" data-for="reset-done">jhpark</span>
+        </div>
+        <div class="secret">
+          <span class="secret__label">임시 비밀번호</span>
+          <div class="secret__row">
+            <span class="secret__value">Kp7wRx3eNq2T</span>
+            <button class="btn btn--small" type="button" aria-label="임시 비밀번호 복사"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>복사</button>
+          </div>
+        </div>
+        <p class="dialog__body field__hint">사용자는 이 비밀번호로 로그인한 뒤 바로 새 비밀번호로 바꿔야 합니다.</p>
+        <div class="dialog__actions">
+          <button class="btn btn--primary" type="button" data-goto="users"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>전달했습니다</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 차단 확인 ===== -->
+    <div class="backdrop" data-for="block">
+      <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="block-title">
+        <h2 class="dialog__title" id="block-title">'jhpark' 계정을 차단할까요?</h2>
+        <p class="dialog__body">바로 로그인할 수 없고, 쓰고 있던 화면에서도 로그인이 풀립니다. 세션 기록은 남고, 언제든 차단을 해제할 수 있습니다.</p>
+        <div class="dialog__actions">
+          <button class="btn" type="button" data-goto="users">취소</button>
+          <button class="btn btn--danger" type="button" data-goto="users">차단</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 비밀번호 초기화 확인 ===== -->
+    <div class="backdrop" data-for="reset">
+      <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+        <h2 class="dialog__title" id="reset-title">'jhpark' 비밀번호를 초기화할까요?</h2>
+        <p class="dialog__body">새 임시 비밀번호를 만듭니다. 지금 비밀번호와 로그인 중인 화면은 모두 무효가 됩니다.</p>
+        <div class="dialog__actions">
+          <button class="btn" type="button" data-goto="users">취소</button>
+          <button class="btn btn--danger" type="button" data-goto="reset-done">초기화</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+  const SCREENS = ['login', 'login-not-admin', 'users', 'users-empty', 'users-error', 'create', 'create-taken',
+    'create-done', 'block', 'reset', 'reset-done'];
+
+  function includes(list, name) {
+    return list.split(' ').includes(name);
+  }
+
+  function setPressed(group, value) {
+    document.querySelectorAll(`[data-group="${group}"]`).forEach((chip) => {
+      chip.setAttribute('aria-pressed', String(chip.dataset.value === value));
+    });
+  }
+
+  function showScreen(name) {
+    document.querySelectorAll('[data-for]').forEach((el) => {
+      el.hidden = !includes(el.dataset.for, name);
+    });
+    // 임시 비밀번호 대화상자는 제목이 화면마다 다르다.
+    document.getElementById('secret-dialog').setAttribute('aria-labelledby', name === 'reset-done' ? 'secret-title-reset' : 'secret-title');
+    const chip = document.querySelector(`[data-group="screen"][data-value="${name}"]`);
+    document.getElementById('screen-desc').textContent = chip.dataset.desc;
+    setPressed('screen', name);
+    history.replaceState(null, '', `#${name}`);
+  }
+
+  const toolActions = {
+    screen: showScreen,
+    theme: (value) => { document.documentElement.dataset.colorMode = value; setPressed('theme', value); },
+    width: (value) => { document.querySelector('.stage').dataset.width = value; setPressed('width', value); },
+  };
+
+  function onClick(event) {
+    const chip = event.target.closest('[data-group]');
+    if (chip) return toolActions[chip.dataset.group](chip.dataset.value);
+    const goto = event.target.closest('[data-goto]');
+    if (goto) return showScreen(goto.dataset.goto);
+  }
+
+  document.addEventListener('click', onClick);
+  const initial = location.hash.slice(1);
+  showScreen(SCREENS.includes(initial) ? initial : 'login');
+  toolActions.theme('light');
+  toolActions.width('wide');
+</script>
+</body>
+</html>
