@@ -33,7 +33,9 @@
    - `bgColor-*-emphasis` 위의 글자는 `fgColor-onEmphasis`를 쓴다.
    - `bgColor-muted` 위에는 `fgColor-default`를 쓰고 `fgColor-muted`를 쓰지 않는다.
    - 글자 대비는 일반 글자 4.5:1, 큰 글자와 컨트롤 3:1 이상이다.
-3. **글자는 shorthand 토큰을 쓴다.** `font: var(--text-body-shorthand-medium)`처럼 글자 크기와 줄 간격, 굵기를 한 번에 정한다. 역할에 맞는 토큰을 쓴다(제목은 `title`, 본문은 `body`). 여러 줄 본문에 `caption`을 쓰지 않는다. 좁은 화면에서 글자 크기를 어떻게 줄일지는 샘플 화면(#3~#5) 검토에서 정한다.
+3. **글자는 shorthand 토큰을 쓴다.** `font: var(--text-body-shorthand-medium)`처럼 글자 크기와 줄 간격, 굵기를 한 번에 정한다. 역할에 맞는 토큰을 쓴다(제목은 `title`, 본문은 `body`). 여러 줄 본문에 `caption`을 쓰지 않는다.
+   - 질문, 답변, 입력칸처럼 사용자가 쓰거나 읽는 내용은 `--text-body-shorthand-large`(16px)를 쓴다. 16px 미만이면 iOS Safari가 입력칸을 누를 때 화면을 확대한다.
+   - 좁은 화면(`--breakpoint-medium` 미만)에서는 `--text-title-shorthand-large`를 `--text-title-shorthand-medium`으로 한 단계 줄이고, 본문은 그대로 둔다(Primer 토큰 설명의 규칙). 사용자 웹 샘플(#3) 검토에서 정했다.
 4. **간격은 토큰을 쓴다.** 레이아웃 간격은 `--stack-gap-*`, `--stack-padding-*`(`condensed`, `normal`, `spacious`), 버튼 같은 컨트롤은 `--control-*` 토큰을 쓴다. 기본은 `medium`과 `normal`이다.
 5. **모서리는 `--borderRadius-*`를 쓴다.** `small`, `medium`, `large`, `full`이 있고 기본은 `medium`이다.
 6. **겹치는 층은 `--zIndex-*`를 쓴다.** 숫자를 직접 쓰지 않는다.
