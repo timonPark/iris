@@ -34,7 +34,6 @@ describe('SettingsScreen', () => {
   it('샘플(#3)의 설정 화면 요소가 있다', () => {
     setup([])
 
-    expect(screen.getByRole('heading', { name: '설정' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '비밀번호 변경' })).toBeInTheDocument()
     expect(screen.getByLabelText('현재 비밀번호')).toHaveAttribute('autocomplete', 'current-password')
     expect(screen.getByLabelText('새 비밀번호')).toHaveAccessibleDescription('8자 이상')

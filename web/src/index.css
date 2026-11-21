@@ -29,7 +29,53 @@ body .field-input { font: var(--text-body-shorthand-large); }
 .auth__desc { margin: 0; color: var(--fgColor-muted); }
 .auth__note { margin: 0; text-align: center; font: var(--text-body-shorthand-small); color: var(--fgColor-muted); }
 
-/* ---------- 로그인 뒤 본문 (사이드바는 #24) ---------- */
+/* ---------- 채팅 화면 틀 ---------- */
+.app { flex: 1; display: flex; min-width: 0; position: relative; }
+.sidebar {
+  width: var(--overlay-width-small); flex: none; display: flex; flex-direction: column;
+  background: var(--bgColor-muted); color: var(--fgColor-default);
+  border-right: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+.sidebar__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--stack-padding-condensed) var(--stack-padding-normal);
+}
+.sidebar__brand { margin: 0; font: var(--text-title-shorthand-small); }
+/* Primer IconButton이 display를 정하므로 body를 붙여 우선한다. */
+body .sidebar__close { display: none; }
+.sidebar__heading {
+  margin: 0; padding: var(--space-sm) var(--stack-padding-normal) var(--space-xs);
+  font: var(--text-body-shorthand-small); font-weight: var(--base-text-weight-semibold);
+}
+.sessions { flex: 1; overflow: auto; margin: 0; padding: 0 var(--stack-padding-condensed); list-style: none; }
+.session { display: flex; align-items: center; border-radius: var(--borderRadius-medium); }
+.session:hover { background: var(--bgColor-neutral-muted); }
+.session:active { background: var(--button-invisible-bgColor-active); }
+/* Primer BaseStyles의 링크 색(파랑) 대신 샘플처럼 기본 글자색 */
+body .session__link {
+  flex: 1; min-width: 0; padding: var(--control-medium-paddingBlock) var(--control-medium-paddingInline-condensed);
+  border-radius: var(--borderRadius-medium); color: var(--fgColor-default); text-decoration: none;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.session__link:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-outline-offset); }
+.session__link[aria-current="page"] { font-weight: var(--base-text-weight-semibold); }
+.session:has([aria-current="page"]) { background: var(--bgColor-accent-muted); }
+.session__delete { visibility: hidden; }
+.session:hover .session__delete, .session:focus-within .session__delete { visibility: visible; }
+@media (hover: none) { .session__delete { visibility: visible; } }
+.sessions__more {
+  display: flex; align-items: center; justify-content: center; gap: var(--space-sm);
+  padding: var(--space-md); font: var(--text-body-shorthand-small);
+}
+.sessions__more--error { flex-direction: column; color: var(--fgColor-danger); }
+.sidebar__foot {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+  padding: var(--stack-padding-condensed) var(--stack-padding-normal);
+  border-top: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+.sidebar__user { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drawer-backdrop { display: none; }
+
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar {
   display: flex; align-items: center; gap: var(--space-sm); min-height: var(--control-large-size);
@@ -37,11 +83,57 @@ body .field-input { font: var(--text-body-shorthand-large); }
   border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted);
 }
 .topbar__title { margin: 0; min-width: 0; font: var(--text-title-shorthand-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .menu-btn { display: none; }
+
+/* ---------- 스레드 ---------- */
+.thread { flex: 1; overflow: auto; padding: var(--stack-padding-spacious) var(--stack-padding-normal); }
+.thread__inner { max-width: var(--breakpoint-medium); margin: 0 auto; display: flex; flex-direction: column; gap: var(--stack-gap-spacious); }
+.question {
+  align-self: flex-end; max-width: var(--overlay-width-large); margin: 0;
+  padding: var(--space-sm) var(--space-md); border-radius: var(--borderRadius-large);
+  background: var(--bgColor-muted); color: var(--fgColor-default);
+  font: var(--text-body-shorthand-large); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.answer { display: flex; flex-direction: column; gap: var(--space-sm); font: var(--text-body-shorthand-large); }
+.answer p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.answer__meta { display: flex; align-items: center; gap: var(--space-sm); font: var(--text-body-shorthand-small); color: var(--fgColor-muted); }
+.caret {
+  display: inline-block; width: var(--base-size-8); height: var(--text-body-size-large);
+  margin-left: var(--space-xxs); vertical-align: text-bottom;
+  border-radius: var(--borderRadius-small); background: var(--fgColor-accent);
+}
+.label {
+  display: inline-flex; align-items: center; padding: 0 var(--space-sm);
+  border: var(--borderWidth-thin) solid var(--borderColor-attention-emphasis); border-radius: var(--borderRadius-full);
+  color: var(--fgColor-attention); font: var(--text-body-shorthand-small);
+}
 .empty {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: var(--space-sm); padding: var(--stack-padding-spacious); text-align: center;
 }
+.empty__title { margin: 0; font: var(--text-title-shorthand-medium); }
 .empty__desc { margin: 0; color: var(--fgColor-muted); }
+
+/* ---------- 질문 입력 ---------- */
+.composer { padding: var(--stack-padding-condensed) var(--stack-padding-normal) var(--stack-padding-normal); }
+.composer__notice { max-width: var(--breakpoint-medium); margin: 0 auto var(--space-sm); }
+.composer__box {
+  max-width: var(--breakpoint-medium); margin: 0 auto; display: flex; align-items: flex-end; gap: var(--space-sm);
+  padding: var(--space-sm); border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-large); background: var(--bgColor-default); box-shadow: var(--shadow-resting-small);
+}
+.composer__box:hover { border-color: var(--borderColor-emphasis); }
+.composer__box:focus-within { outline: var(--focus-outline); }
+.composer__input {
+  flex: 1; min-width: 0; max-height: var(--base-size-128); padding: var(--space-xs) var(--space-sm);
+  border: 0; background: transparent; color: inherit; resize: none; font: var(--text-body-shorthand-large);
+}
+.composer__input:focus { outline: none; }
+.composer__hint {
+  max-width: var(--breakpoint-medium); margin: var(--space-xs) auto 0; text-align: center;
+  font: var(--text-body-shorthand-small); color: var(--fgColor-muted);
+}
+.dialog__body { margin: 0; }
 
 /* ---------- 설정 ---------- */
 .page { flex: 1; overflow: auto; padding: var(--stack-padding-spacious) var(--stack-padding-normal); }
@@ -57,4 +149,22 @@ body .field-input { font: var(--text-body-shorthand-large); }
    미디어 쿼리 조건에는 CSS 변수를 쓸 수 없어서 값을 직접 쓴다. 48rem = var(--breakpoint-medium) */
 @media (max-width: 48rem) {
   .auth__brand { font: var(--text-title-shorthand-medium); }
+  body .menu-btn, body .sidebar__close { display: inline-flex; }
+  .sidebar {
+    position: absolute; inset: 0 auto 0 0; z-index: var(--zIndex-overlay);
+    width: min(calc(100% - var(--control-large-size)), var(--overlay-width-small));
+    transform: translateX(-100%); transition: transform var(--motion-transition-exit);
+    box-shadow: var(--shadow-floating-large);
+  }
+  .app.is-drawer-open .sidebar { z-index: var(--zIndex-modal); transform: none; transition: transform var(--motion-transition-enter); }
+  .app.is-drawer-open .drawer-backdrop {
+    display: block; position: absolute; inset: 0; z-index: var(--zIndex-overlay);
+    background: var(--overlay-backdrop-bgColor);
+  }
+  .session__delete { visibility: visible; }
+  .composer__hint { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
 }
