@@ -13,3 +13,44 @@
 - **단순하게**: 가입 화면, 관리자 기능(`admin/` 담당), 음성 입력(모바일 전용)은 만들지 않습니다.
 - **필요한 곳만**: 규격에 맞춰 호출만 합니다. 규격을 바꿔야 하면 `docs/`에 먼저 반영하고 모바일 세션에 알립니다.
 - **검증 먼저**: 질문 입력 → 스트리밍 표시 → 완료 흐름을 확인 가능한 기준으로 정하고 구현합니다.
+
+## 명령어
+
+Vite + React + TypeScript, 패키지는 npm으로 관리합니다(`package-lock.json` 커밋). 아래 명령은 모두 `web/` 폴더에서 실행합니다.
+
+### 처음 한 번
+
+```bash
+npm install                     # 의존성 설치
+cp .env.example .env.local      # 백엔드 주소를 바꿀 때만. .env.local은 커밋하지 않는다
+```
+
+### 실행, 테스트, 빌드
+
+```bash
+npm run dev                     # 개발 서버. http://localhost:5173
+npm test                        # 전체 테스트 (Vitest, jsdom). 지켜보며 돌리려면 npx vitest
+npm run lint                    # ESLint
+npm run build                   # 타입 검사(tsc -b) 후 dist/에 빌드
+npm run gen:api                 # docs/api/openapi.yaml → src/api/schema.d.ts 타입 다시 생성
+```
+
+### 백엔드 주소
+
+- `VITE_API_BASE_URL`(`.env.local`)에 적습니다. 비우면 `http://localhost:8000`입니다(`src/config.ts`).
+- 다른 PC에서 개발할 때는 ngrok 고정 도메인을 적습니다. 백엔드가 `localhost`, `127.0.0.1`의 모든 포트에 CORS를 허용하므로(#56) Vite 프록시는 쓰지 않습니다.
+
+### API 호출
+
+- `src/api/client.ts`의 `createApiClient({ baseUrl, getAccessToken })`를 씁니다. `openapi-fetch` 클라이언트라서 경로, 요청, 응답 타입이 `docs/api/openapi.yaml`과 같습니다. 예: `client.GET('/api/v1/sessions')` → `{ data, error }`, `error`는 `{ error: { code, message } }` 모양입니다.
+- 요청마다 `ngrok-skip-browser-warning: 1`을 붙이고, 토큰이 있으면 `Authorization: Bearer`를 붙입니다. 토큰 저장 방법은 로그인 화면(#18)에서 정합니다.
+- 규격이 바뀌면 `npm run gen:api`로 `src/api/schema.d.ts`를 다시 만들어 함께 커밋합니다. 이 파일은 손으로 고치지 않습니다.
+- SSE(질문 전송)는 `openapi-fetch`로 받지 않습니다. 처리 방법은 채팅 화면(#24)에서 만듭니다.
+
+### Primer와 테마
+
+- `@primer/react` 38.46.0, `@primer/primitives` 11.10.0을 정확한 버전으로 고정합니다. 버전을 올릴 때는 `../ssot/PRIMER.md`를 따릅니다(관리자 웹, 모바일과 함께).
+- 토큰 CSS(`primitives.css`, `light.css`, `dark.css`)는 `src/main.tsx`에서 불러옵니다. 직접 쓰는 CSS도 색, 간격, 글자는 토큰만 씁니다.
+- 테마는 기기 설정을 따릅니다. `index.html`의 `<html>`에 `data-color-mode="auto"`, `data-light-theme="light"`, `data-dark-theme="dark"`가 있어서 `body` 배경까지 테마를 따릅니다. 화면에 테마 전환 버튼은 없습니다.
+- `ThemeProvider`는 `@primer/react/next`의 것을 씁니다(루트의 것은 deprecated). 속성은 `<html>`에 있으므로 `contextOnly`로 씁니다.
+- 테스트에서 `@primer/react`가 CSS를 import하므로 `vite.config.ts`의 `test.server.deps.inline`에 넣어 두었습니다. jsdom에 없는 `matchMedia`는 `src/test/setup.ts`가 채웁니다.
