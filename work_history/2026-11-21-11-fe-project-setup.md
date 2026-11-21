@@ -45,6 +45,7 @@
 - 2026-11-21 테스트에서 `@primer/react`의 CSS import를 Node가 읽지 못해 실패 → `test.server.deps.inline`에 넣어 해결. `index.html` 읽기는 `?raw` import로 바꿔 `@types/node`를 넣지 않았다.
 - 2026-11-21 개발 서버를 띄워 Chrome에서 라이트·다크 확인(결과 참고). 코드 리뷰(codex, agy) 반영.
 - 2026-11-21 PR을 올리고 상태를 `검증 대기`로 변경.
+- 2026-11-21 사용자 요청으로 Aside 브라우저에서 확인(결과 참고).
 
 ## 결과
 
@@ -61,6 +62,10 @@
   - 라이트: `<html>` 속성 `auto/light/dark`, `--bgColor-default` `#ffffff`, `body` 배경 `rgb(255,255,255)`, 글자 `rgb(31,35,40)`, 제목이 BaseStyles 안, 글꼴 스택이 Primer `--fontStack-sansSerif`.
   - 같은 페이지에서 기기 설정만 다크로 바꾸자(새로고침 없음) `--bgColor-default` `#0d1117`, 배경 `rgb(13,17,23)`, 글자 `rgb(240,246,252)`. 다시 라이트로 바꾸면 원래 값. 스크린샷도 눈으로 확인했다.
   - 콘솔 오류는 `/favicon.ico` 404 하나뿐이다(아이콘을 아직 정하지 않음).
+- Aside 브라우저 확인(사용자 요청): `npm run dev`로 띄운 `http://localhost:5173/`을 열었다.
+  - 제목 `Iris`, `<html lang="ko">`, 테마 속성 `auto/light/dark`, 제목이 BaseStyles 안, 여백 `24px`(`--stack-padding-spacious`), 글꼴 스택이 Primer 기본.
+  - 이 PC가 다크 모드라 처음엔 다크로 열렸다: `--bgColor-default` `#0d1117`, 배경 `rgb(13,17,23)`, 글자 `rgb(240,246,252)`.
+  - 같은 탭에서 기기 설정을 라이트로 흉내 내자(새로고침 없음) `#ffffff`, 배경 `rgb(255,255,255)`, 글자 `rgb(31,35,40)`. 다시 다크로 바꾸면 원래 값. 두 화면 모두 스크린샷으로 눈으로 확인했다.
 - 완료 조건 3: `web/CLAUDE.md`에 설치, 실행, 테스트, 린트, 빌드, 타입 생성 명령을 적었다.
 - 한계: 이 PC의 백엔드가 꺼져 있어 실제 API 호출은 확인하지 못했다. 헤더와 주소는 테스트로, CORS는 #56에서 확인했다.
 - 참고: npm 11의 설치 스크립트 승인 기능 때문에 `esbuild`, `fsevents`의 설치 스크립트가 실행되지 않았다는 경고가 나온다. 개발 서버, 테스트, 빌드는 정상 동작한다.
