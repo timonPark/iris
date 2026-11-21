@@ -77,7 +77,7 @@ Primer는 React용이라 Flutter용 출력(Dart)이 없다. 웹과 앱의 값이
   - 넘어감: `light.css`와 `dark.css`를 함께 불러오면 다크가 라이트를 덮는다. 두 파일은 `data-color-mode` 속성 선택자로 나뉘어 있고, 다크로 바꿔 비교한 값도 모두 맞았다.
 
 ### PR
-- (작성 후 추가)
+- https://github.com/timonPark/iris/pull/63
 
 ### 남은 일
 - Flutter 프로젝트를 만드는 #13에서 `lib/theme/primer_tokens.dart`를 실제로 불러 써 본다(테마 연결).
