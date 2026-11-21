@@ -94,7 +94,7 @@
   - 넘어감: `--button-invisible-bgColor-active`, `--focus-outline-offset`, `--motion-transition-*`가 없는 토큰. 모두 `@primer/primitives` 11.10.0에 있다(샘플 #3의 토큰 검사에도 포함).
 
 ### PR
-- (작성 후 추가)
+- https://github.com/timonPark/iris/pull/61
 
 ### 남은 일
 - 답변의 링크 표시는 #38.
