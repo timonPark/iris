@@ -18,16 +18,11 @@ interface Fields {
 
 const EMPTY: Fields = { current: '', newPassword: '', confirm: '' }
 
-/** 설정 화면. 사이드바와 함께 놓는 채팅 앱 틀은 #24에서 만든다. */
+/** 설정 본문. 채팅 화면 틀(ChatScreen)의 본문 자리에 들어가고, 제목 "설정"은 틀의 위쪽 막대에 있다. */
 export function SettingsScreen(props: SettingsScreenProps): JSX.Element {
   return (
-    <div className="main">
-      <div className="topbar">
-        <h2 className="topbar__title">설정</h2>
-      </div>
-      <div className="page">
-        <PasswordPanel {...props} />
-      </div>
+    <div className="page">
+      <PasswordPanel {...props} />
     </div>
   )
 }

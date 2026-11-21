@@ -13,6 +13,8 @@ export const MESSAGES = {
   passwordTooShort: '새 비밀번호는 8자 이상이어야 합니다.',
   currentPasswordWrong: '현재 비밀번호가 올바르지 않습니다.',
   passwordChanged: '비밀번호를 변경했습니다.',
+  serverErrorRetry: '서버 오류가 발생했습니다. 잠시 후 다시 질문해 주세요.',
+  questionTooLong: '질문은 65,536자까지 보낼 수 있습니다.',
 } as const
 
 export const MIN_PASSWORD_LENGTH: number = 8
@@ -26,6 +28,14 @@ export function errorText(error: ErrorResponse | undefined): string {
     return MESSAGES.blocked
   }
   return error.error.message
+}
+
+/** 채팅의 오류 문구. 서버 오류와 연결 실패에는 샘플(#3)의 "잠시 후 다시 질문해 주세요."를 덧붙인다. */
+export function chatErrorText(error: ErrorResponse | undefined): string {
+  if (error === undefined || error.error.code === 'SERVER_ERROR') {
+    return MESSAGES.serverErrorRetry
+  }
+  return errorText(error)
 }
 
 /** 새 비밀번호 확인. 문제가 없으면 null. */

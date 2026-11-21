@@ -32,22 +32,28 @@ export function usePasswordChange(client: ApiClient, onChanged: (accessToken: st
     }
     inFlight.current = true
     setBusy(true)
-    const { data, error: apiError } = await safely(
-      client.POST('/api/v1/auth/password', {
-        body: { currentPassword: input.currentPassword, newPassword: input.newPassword },
-      }),
-    )
+    const result: { accessToken: string } | string = await requestChange(client, input)
     inFlight.current = false
     setBusy(false)
-    if (data === undefined) {
-      setError(changeErrorText(apiError, input.currentPassword !== undefined))
+    if (typeof result === 'string') {
+      setError(result)
       return false
     }
-    onChanged(data.accessToken)
+    onChanged(result.accessToken)
     return true
   }
 
   return { error, busy, change }
+}
+
+/** 비밀번호 변경 호출. 실패하면 화면 문구. */
+async function requestChange(client: ApiClient, input: PasswordChangeInput): Promise<{ accessToken: string } | string> {
+  const { data, error } = await safely(
+    client.POST('/api/v1/auth/password', {
+      body: { currentPassword: input.currentPassword, newPassword: input.newPassword },
+    }),
+  )
+  return data ?? changeErrorText(error, input.currentPassword !== undefined)
 }
 
 function changeErrorText(error: ErrorResponse | undefined, sentCurrent: boolean): string {

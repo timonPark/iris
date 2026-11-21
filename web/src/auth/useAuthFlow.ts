@@ -4,7 +4,7 @@ import { apiBaseUrl } from '../config'
 import type { LoginNotice } from '../screens/LoginScreen'
 import { clearAuth, loadAuth, saveAuth, type StoredAuth } from './storage'
 
-export type Screen = 'login' | 'force-change' | 'chat' | 'settings'
+export type Screen = 'login' | 'force-change' | 'chat'
 
 export interface AuthFlow {
   screen: Screen
@@ -12,7 +12,8 @@ export interface AuthFlow {
   client: ApiClient
   loggedIn: (auth: StoredAuth) => void
   passwordChanged: (accessToken: string) => void
-  go: (screen: Screen) => void
+  /** 로그인한 아이디(사이드바 아래에 보여준다). */
+  loginId: string
 }
 
 type SetScreen = (screen: Screen) => void
@@ -65,5 +66,5 @@ export function useAuthFlow(fetchImpl?: typeof fetch): AuthFlow {
     setScreen((current: Screen): Screen => (current === 'force-change' ? 'chat' : current))
   }
 
-  return { screen, notice, client, loggedIn, passwordChanged, go: setScreen }
+  return { screen, notice, client, loggedIn, passwordChanged, loginId: loadAuth()?.loginId ?? '' }
 }
