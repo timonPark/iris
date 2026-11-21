@@ -81,7 +81,7 @@
   - 넘어감: import 확장자 일관성. `main.tsx`는 Vite 템플릿 그대로다.
 
 ### PR
-- (작성 후 추가)
+- https://github.com/timonPark/iris/pull/59
 
 ### 남은 일
 - 토큰 저장 방법과 로그인 흐름은 #18, SSE 수신은 #24에서 만든다.
