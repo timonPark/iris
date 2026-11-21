@@ -1,0 +1,10 @@
+/* 색, 간격, 글자는 Primer 토큰만 쓴다(ssot/PRIMER.md). */
+body {
+  margin: 0;
+  background-color: var(--bgColor-default);
+  color: var(--fgColor-default);
+}
+
+.app {
+  padding: var(--stack-padding-spacious);
+}
