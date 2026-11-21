@@ -5,7 +5,7 @@ Iris의 모바일 앱입니다. iOS와 Android에서 질문을 입력하거나 �
 ## 기술 스택
 
 - Flutter (iOS, Android)
-- 디자인: Primer 토큰을 Dart 파일로 생성해 사용 (라이트와 다크). Primer는 React용이라 Flutter용 출력이 없어 스크립트로 만듭니다(이슈 #6).
+- 디자인: Primer 토큰을 Dart 파일(`lib/theme/primer_tokens.dart`)로 생성해 사용 (라이트와 다크). Primer는 React용이라 Flutter용 출력이 없어 스크립트(`tool/primer_tokens/`)로 만듭니다(이슈 #6, 명령은 [`CLAUDE.md`](CLAUDE.md)).
 
 ## 화면
 
