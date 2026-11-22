@@ -14,7 +14,7 @@
 - 두 패키지의 버전은 사용자 웹과 관리자 웹이 같게 쓴다. 설치할 때 `--save-exact`로 고정하고 lock 파일을 커밋한다.
 - `@primer/react` 38.46.0은 `@primer/primitives` `10.x || 11.x`와 `react` `18.x || 19.x`를 요구한다. 11.10.0은 이 범위 안이다.
 - 버전을 올릴 때는 웹 두 곳과 모바일(#6의 생성 스크립트 재실행)을 함께 올린다. 한 쪽만 올리지 않는다.
-- 모바일의 Dart 토큰 파일은 생성 결과를 커밋하고, 버전을 올리는 PR에 다시 생성한 파일을 함께 넣는다. 웹의 CSS 변수 값과 같은지 확인하는 방법은 #6의 완료 조건이다.
+- 모바일의 Dart 토큰 파일(`mobile/lib/theme/primer_tokens.dart`)은 생성 결과를 커밋하고, 버전을 올리는 PR에 다시 생성한 파일을 함께 넣는다. 버전은 `mobile/tool/primer_tokens/package.json`에서 웹과 같게 바꾸고 `npm run generate`로 다시 만든 뒤, `npm run verify`로 웹의 CSS 변수 값(Chrome에서 계산한 값)과 같은지 확인한다(#6).
 - 이슈와 일부 문서에 `primer/react`로 적힌 곳이 있지만, 실제 패키지 이름은 `@primer/react`, `@primer/primitives`다.
 
 ## 테마 (라이트와 다크)
@@ -42,7 +42,11 @@
 7. **움직임은 `--motion-*` 토큰을 쓴다.** 300ms를 넘기지 않고, `prefers-reduced-motion`이면 움직임을 끈다.
 8. **상호작용 요소는 다섯 상태(기본, hover, `:focus-visible`, active, disabled)를 모두 정한다.** 비활성은 투명도가 아니라 `bgColor-disabled`, `fgColor-disabled`로 표현한다.
 
-모바일 앱은 CSS 변수를 쓸 수 없으므로 같은 규칙을 Dart 토큰 파일로 따른다. 생성 방식은 이슈 #6에서 정한다.
+모바일 앱은 CSS 변수를 쓸 수 없으므로 같은 규칙을 Dart 토큰 파일로 따른다(#6).
+
+- 생성 파일 `mobile/lib/theme/primer_tokens.dart`에 `PrimerColors.light`/`PrimerColors.dark`(색), `PrimerSize`(간격, 컨트롤 크기, 테두리, 화면 너비 기준), `PrimerRadius`(모서리), `PrimerText`(글자 크기, 줄 간격, 굵기)가 있다. 손으로 고치지 않는다.
+- 이름은 CSS 변수 이름을 lowerCamelCase로 바꾼 것이다. 예: `--bgColor-default` → `bgColorDefault`, `--stack-gap-normal` → `stackGapNormal`.
+- 크기는 논리 픽셀(rem × 16)이다. 터치 화면용 값(`size-coarse.css`)을 쓴다. 그림자처럼 한 가지 값이 아닌 토큰, 글꼴 이름, 글자 묶음(shorthand)은 없다. 글자는 크기, 줄 간격, 굵기를 따로 쓴다.
 
 ## 글꼴
 
