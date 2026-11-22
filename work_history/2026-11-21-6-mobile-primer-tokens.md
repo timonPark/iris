@@ -4,9 +4,9 @@
 |---|---|
 | 이슈 | #6 (https://github.com/timonPark/iris/issues/6) |
 | 브랜치 | 2026-11-21-6-mobile-primer-tokens |
-| 상태 | 검증 대기 |
+| 상태 | 완료 |
 | 시작일자 | 2026-11-21 |
-| 종료일자 | |
+| 종료일자 | 2026-11-22 |
 
 ## 작업 내용
 
@@ -45,6 +45,8 @@ Primer는 React용이라 Flutter용 출력(Dart)이 없다. 웹과 앱의 값이
 - 2026-11-21 이 PC에 Dart가 없어 Docker의 공식 Dart 이미지(`dart:3.5`, 3.5.4)로 `dart analyze`. Flutter의 `dart:ui`는 순수 Dart SDK에 없어 `Color`, `FontWeight` 모양만 같은 대역으로 바꿔 확인.
 - 2026-11-21 문서 반영(`ssot/PRIMER.md`, `mobile/CLAUDE.md`, `mobile/README.md`).
 - 2026-11-21 코드 리뷰(codex, agy) 반영(결과 참고). PR을 올리고 상태를 `검증 대기`로 변경.
+- 2026-11-22 검증: Homebrew로 Flutter 3.50.1(Dart 3.14.0) 설치. 저장소 밖 임시 Flutter 프로젝트에서 생성 파일을 불러와 analyze·위젯 테스트·화면 확인(결과 참고). Xcode가 없어 iOS·macOS 앱 대신 Flutter 웹으로 띄움.
+- 2026-11-22 사용자 검증 후 머지 지시. 상태 `완료`.
 
 ## 결과
 
@@ -59,7 +61,12 @@ Primer는 React용이라 Flutter용 출력(Dart)이 없다. 웹과 앱의 값이
 - 완료 조건 2: `npm run verify` → 1,973개(색 라이트 905, 다크 905, 크기·줄 간격 150, 굵기 13)를 Chrome이 같은 Primer CSS로 계산한 값과 비교해 다른 값 0개. 일부러 값 2개를 바꾸면 두 개를 찾아 실패(exit 1)하는 것도 확인.
 - 완료 조건 3: `PrimerColors.light`, `PrimerColors.dark`가 같은 이름의 색 905개를 모두 갖는다(예: `bgColorDefault` 라이트 `0xFFFFFFFF`, 다크 `0xFF0D1117`).
 - Dart 문법: `dart:3.5` 이미지에서 `dart analyze --fatal-infos` "No issues found!"(생성 파일과, 그것을 쓰는 예시 코드).
-- 한계: Flutter SDK로 실제 앱에서 불러 보는 것은 Flutter 프로젝트를 만드는 #13에서 한다.
+- 2026-11-22 다시 실행: `npm test` 21개 통과, `npm run generate` 결과가 커밋한 파일과 같음(`git status` 변경 없음), `npm run verify` 1,973개 다른 값 0개.
+- 2026-11-22 Flutter 3.50.1 확인(저장소 밖 임시 프로젝트, 생성 파일을 그대로 복사):
+  - `flutter analyze --fatal-infos`: "No issues found!"(실제 `dart:ui`의 `Color`, `FontWeight`로 컴파일)
+  - `flutter test` 3개 통과: 라이트·다크 `bgColorDefault`가 웹 값과 같음, 라이트·다크 토큰으로 그린 위젯의 크기 44×44(`PrimerSize.controlMinTargetAuto`), 모서리 6(`PrimerRadius.borderRadiusMedium`), 배경색
+  - 화면: 라이트·다크 토큰(배경·글자·테두리·강조색 5가지, 간격, 모서리, 글자 크기·굵기)으로 그린 화면을 Flutter 웹으로 빌드해 Chrome에서 캡처, 사용자 확인
+- 한계: 저장소 안 Flutter 프로젝트에서 테마로 연결하는 것은 #13에서 한다.
 
 ### 코드 리뷰 반영 내역
 - codex(`codex review --uncommitted`): 지적 없음(테스트 19개 통과, 다시 만든 내용이 커밋할 파일과 같음을 확인).
@@ -82,3 +89,4 @@ Primer는 React용이라 Flutter용 출력(Dart)이 없다. 웹과 앱의 값이
 ### 남은 일
 - Flutter 프로젝트를 만드는 #13에서 `lib/theme/primer_tokens.dart`를 실제로 불러 써 본다(테마 연결).
 - 모바일 앱 샘플(#5)도 이제 시작할 수 있다.
+- #13 참고: Flutter 3.50에서 `package:flutter/material.dart`가 deprecated(`package:material_ui/material_ui.dart`로 안내). 토큰 파일은 `dart:ui`만 써서 영향 없음.
