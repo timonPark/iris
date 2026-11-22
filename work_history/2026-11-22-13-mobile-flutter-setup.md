@@ -4,7 +4,7 @@
 |---|---|
 | 이슈 | #13 (https://github.com/timonPark/iris/issues/13) |
 | 브랜치 | 2026-11-22-13-mobile-flutter-setup |
-| 상태 | 진행 중 |
+| 상태 | 검증 대기 |
 | 시작일자 | 2026-11-22 |
 | 종료일자 | |
 
@@ -52,6 +52,7 @@
 - 2026-11-23 iOS: 사용자가 Xcode 27.2 설치와 `xcode-select`·`-runFirstLaunch`·라이선스 동의를 마침. iOS 27.2 시뮬레이터 런타임은 이미 있었음. CocoaPods 1.17 설치(이번엔 플러그인이 없어 안 쓰지만 #19, #32에서 필요). iPhone 17 시뮬레이터에서 실행해 라이트·다크 확인.
 - 2026-11-23 Xcode 27에는 Simulator 앱이 기존 위치에 없어 `open -a Simulator`가 실패 → `mobile/CLAUDE.md`를 `xcrun simctl boot "iPhone 17"`로 고침(창 없이 켜지고 `flutter devices`에 잡힘).
 - 2026-11-23 코드 리뷰(codex, agy) 반영(결과 참고).
+- 2026-11-23 PR #64를 올리고 상태를 `검증 대기`로 변경.
 
 ## 결과
 
@@ -82,6 +83,7 @@
   - 반영: 테스트에 `titleMedium`, `bodyMedium`, `secondary`, `onSecondary` 검증이 빠짐 → 추가
 
 ### PR
+- https://github.com/timonPark/iris/pull/64
 
 ### 남은 일
 - 화면 이슈(#19, #25, #32)에서 필요한 컴포넌트 테마(버튼, 입력칸 등)를 Primer 토큰으로 더한다.
