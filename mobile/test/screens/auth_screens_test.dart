@@ -55,7 +55,7 @@ void main() {
 
     await login(tester);
 
-    expect(find.text('채팅 화면은 준비 중입니다.'), findsOneWidget);
+    expect(find.text('Iris에게 질문하세요'), findsOneWidget);
     final StoredAuth? stored = await storage.load();
     expect(stored?.accessToken, 'token-1');
     expect(stored?.loginId, 'jhpark');

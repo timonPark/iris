@@ -3,8 +3,8 @@ import 'package:material_ui/material_ui.dart';
 import 'auth/auth_controller.dart';
 import 'auth/auth_storage.dart';
 import 'config.dart';
+import 'screens/chat_screen.dart';
 import 'screens/force_change_screen.dart';
-import 'screens/home_placeholder_screen.dart';
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -71,7 +71,7 @@ class _IrisAppState extends State<IrisApp> {
       AuthScreen.loading => const Scaffold(),
       AuthScreen.login => LoginScreen(controller: controller),
       AuthScreen.forceChange => ForceChangeScreen(controller: controller),
-      AuthScreen.home => HomePlaceholderScreen(controller: controller),
+      AuthScreen.home => ChatScreen(controller: controller),
     };
   }
 }
