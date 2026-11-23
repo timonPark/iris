@@ -35,6 +35,17 @@ flutter build ios --simulator           # iOS 시뮬레이터용 빌드
 - 위젯은 `package:material_ui/material_ui.dart`를 씁니다. Flutter 3.50에서 `package:flutter/material.dart`는 deprecated입니다.
 - 테마는 `lib/theme/app_theme.dart`의 `buildAppTheme`이 Primer 토큰으로 만들고, 기기의 라이트·다크 설정을 따릅니다.
 
+## 로그인 상태와 화면 전환 (#19)
+
+- 로그인 상태는 기기 보안 저장소(`flutter_secure_storage`, iOS Keychain·Android Keystore)의 `iris.auth`(`lib/auth/auth_storage.dart`)가 기준입니다: `accessToken`, `passwordChangeRequired`, `loginId`. 모바일 앱을 껐다 켜도 유지되고 로그아웃 버튼은 없습니다.
+- 화면 전환은 `AuthController`(`lib/auth/auth_controller.dart`)의 `screen`(`loading`, `login`, `forceChange`, `home`)을 `IrisApp`이 따릅니다. 채팅 화면(#25) 전까지 `home`은 설정으로만 가는 자리(`lib/screens/home_placeholder_screen.dart`)입니다.
+- 어느 API에서 받든 `UNAUTHORIZED`·`ACCOUNT_BLOCKED`면 토큰을 지우고 로그인 화면(안내 표시), `PASSWORD_CHANGE_REQUIRED`면 강제 변경 화면으로 갑니다. `ApiClient`의 `onAuthError`가 한 곳에서 처리하고, 위에 연 화면(설정 등)은 `IrisApp`이 닫습니다. 화면마다 따로 처리하지 않습니다.
+- 관리자 계정은 로그인 응답의 `role`로 막습니다(`../ssot/GLOSSARY.md` "사용자 앱").
+- 화면 문구는 `lib/auth/messages.dart`에 모읍니다(사용자 웹 `web/src/auth/messages.ts`와 같은 문구). 오류는 규격의 `message`를 그대로 쓰고, 연결 실패(응답 없음)는 "서버 오류가 발생했습니다."입니다.
+- 요청·응답 모양은 `lib/api/api_models.dart`에 `docs/api/openapi.yaml`과 같게 손으로 둡니다. 결과는 `ApiOk`/`ApiFailure`(`error`가 null이면 연결 실패)입니다.
+- 폼 버튼은 응답을 기다리는 동안 누를 수 없게 합니다(`PrimaryButton`의 `busy`). 위쪽 막대는 테마의 `appBarTheme`(샘플의 topbar)를 씁니다.
+- 테스트는 `test/support/fake_api.dart`(경로별 응답을 정하는 가짜 `http.Client`)와 `FlutterSecureStorage.setMockInitialValues`를 씁니다. 입력칸은 `test/support/finders.dart`의 `fieldFor('라벨')`로 찾습니다.
+
 ## Primer 토큰 (#6)
 
 Flutter용 Primer 출력이 없어서 `@primer/primitives`의 CSS 변수 값을 읽어 Dart 파일을 만듭니다(`../ssot/PRIMER.md`).

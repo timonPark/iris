@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 백엔드 API 호출(#19). 릴리스 빌드에도 필요하다. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="iris"
         android:name="${applicationName}"
