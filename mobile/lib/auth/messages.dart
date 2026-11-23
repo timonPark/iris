@@ -11,6 +11,9 @@ abstract final class Messages {
   static const String passwordTooShort = '새 비밀번호는 8자 이상이어야 합니다.';
   static const String currentPasswordWrong = '현재 비밀번호가 올바르지 않습니다.';
   static const String passwordChanged = '비밀번호를 변경했습니다.';
+  static const String serverErrorRetry = '서버 오류가 발생했습니다. 잠시 후 다시 질문해 주세요.';
+  static const String questionTooLong = '질문은 65,536자까지 보낼 수 있습니다.';
+  static const String disconnected = '연결이 끊겼습니다. 답변은 서버에서 계속 저장됩니다.';
 }
 
 const int minPasswordLength = 8;
@@ -24,6 +27,14 @@ String errorText(ApiError? error) {
     return Messages.blocked;
   }
   return error.message;
+}
+
+/// 채팅의 오류 문구. 서버 오류와 연결 실패에는 샘플의 "잠시 후 다시 질문해 주세요."를 덧붙인다.
+String chatErrorText(ApiError? error) {
+  if (error == null || error.code == 'SERVER_ERROR') {
+    return Messages.serverErrorRetry;
+  }
+  return errorText(error);
 }
 
 /// 새 비밀번호 확인. 문제가 없으면 null.

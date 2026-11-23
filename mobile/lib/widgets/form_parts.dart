@@ -69,9 +69,35 @@ class LabeledField extends StatelessWidget {
   }
 }
 
-enum FlashKind { danger, success }
+enum FlashKind { danger, success, info }
 
-/// 안내 상자. 오류는 빨간 상자, 완료는 초록 상자.
+/// 상자의 바탕, 테두리, 아이콘 색과 아이콘.
+typedef _FlashLook = ({Color bg, Color border, Color fg, IconData icon});
+
+_FlashLook _look(FlashKind kind, PrimerColors c) {
+  return switch (kind) {
+    FlashKind.danger => (
+      bg: c.bgColorDangerMuted,
+      border: c.borderColorDangerMuted,
+      fg: c.fgColorDanger,
+      icon: Icons.error_outline,
+    ),
+    FlashKind.success => (
+      bg: c.bgColorSuccessMuted,
+      border: c.borderColorSuccessMuted,
+      fg: c.fgColorSuccess,
+      icon: Icons.check_circle_outline,
+    ),
+    FlashKind.info => (
+      bg: c.bgColorAccentMuted,
+      border: c.borderColorAccentMuted,
+      fg: c.fgColorAccent,
+      icon: Icons.info_outline,
+    ),
+  };
+}
+
+/// 안내 상자. 오류는 빨간 상자, 완료는 초록 상자, 알림은 파란 상자.
 class Flash extends StatelessWidget {
   const Flash({super.key, required this.text, required this.kind});
 
@@ -80,8 +106,7 @@ class Flash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final PrimerColors c = primerColorsOf(context);
-    final bool danger = kind == FlashKind.danger;
+    final _FlashLook look = _look(kind, primerColorsOf(context));
     return Semantics(
       liveRegion: true,
       child: Container(
@@ -90,34 +115,24 @@ class Flash extends StatelessWidget {
           horizontal: PrimerSize.stackPaddingNormal,
         ),
         decoration: BoxDecoration(
-          color: danger ? c.bgColorDangerMuted : c.bgColorSuccessMuted,
+          color: look.bg,
           border: Border.all(
-            color: danger
-                ? c.borderColorDangerMuted
-                : c.borderColorSuccessMuted,
+            color: look.border,
             width: PrimerSize.borderWidthThin,
           ),
           borderRadius: BorderRadius.circular(PrimerRadius.borderRadiusMedium),
         ),
-        child: _content(context, c, danger),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: PrimerSize.controlMediumGap,
+          children: <Widget>[
+            Icon(look.icon, size: PrimerText.textBodySizeLarge, color: look.fg),
+            Expanded(
+              child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+            ),
+          ],
+        ),
       ),
-    );
-  }
-
-  Widget _content(BuildContext context, PrimerColors c, bool danger) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: PrimerSize.controlMediumGap,
-      children: <Widget>[
-        Icon(
-          danger ? Icons.error_outline : Icons.check_circle_outline,
-          size: PrimerText.textBodySizeLarge,
-          color: danger ? c.fgColorDanger : c.fgColorSuccess,
-        ),
-        Expanded(
-          child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
-        ),
-      ],
     );
   }
 }
@@ -157,4 +172,42 @@ class PrimaryButton extends StatelessWidget {
       child: Text(label),
     );
   }
+}
+
+/// Primer 기본 버튼(회색 테두리). 높이는 터치 최소 크기(44).
+ButtonStyle defaultButtonStyle(BuildContext context, PrimerColors c) {
+  return OutlinedButton.styleFrom(
+    minimumSize: const Size(0, PrimerSize.controlMinTargetCoarse),
+    padding: const EdgeInsets.symmetric(
+      horizontal: PrimerSize.controlMediumPaddingInlineNormal,
+    ),
+    backgroundColor: c.buttonDefaultBgColorRest,
+    foregroundColor: c.buttonDefaultFgColorRest,
+    disabledBackgroundColor: c.buttonDefaultBgColorDisabled,
+    disabledForegroundColor: c.buttonDefaultFgColorDisabled,
+    side: BorderSide(color: c.buttonDefaultBorderColorRest),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(PrimerRadius.borderRadiusMedium),
+    ),
+    textStyle: Theme.of(context).textTheme.bodyMedium
+        ?.copyWith(fontWeight: PrimerText.baseTextWeightSemibold),
+  );
+}
+
+/// Primer 위험 버튼(삭제). 높이는 터치 최소 크기(44).
+ButtonStyle dangerButtonStyle(BuildContext context, PrimerColors c) {
+  return FilledButton.styleFrom(
+    minimumSize: const Size(0, PrimerSize.controlMinTargetCoarse),
+    padding: const EdgeInsets.symmetric(
+      horizontal: PrimerSize.controlMediumPaddingInlineNormal,
+    ),
+    backgroundColor: c.buttonDangerBgColorRest,
+    foregroundColor: c.buttonDangerFgColorRest,
+    side: BorderSide(color: c.buttonDangerBorderColorRest),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(PrimerRadius.borderRadiusMedium),
+    ),
+    textStyle: Theme.of(context).textTheme.bodyMedium
+        ?.copyWith(fontWeight: PrimerText.baseTextWeightSemibold),
+  );
 }

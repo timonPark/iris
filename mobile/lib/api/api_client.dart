@@ -50,11 +50,13 @@ class ApiClient {
   final void Function(AuthErrorCode code) onAuthError;
   final http.Client _http;
 
+  /// 로그인은 토큰 없이 부른다(규격 `security: []`).
   Future<ApiResult<LoginResponse>> login(String loginId, String password) {
-    return _post(
+    return _call(
+      'POST',
       '/api/v1/auth/login',
-      <String, String>{'loginId': loginId, 'password': password},
-      LoginResponse.fromJson,
+      (Object? json) => LoginResponse.fromJson(json as Json),
+      body: <String, String>{'loginId': loginId, 'password': password},
       withToken: false,
     );
   }
@@ -64,27 +66,90 @@ class ApiClient {
     String? currentPassword,
     required String newPassword,
   }) {
-    return _post('/api/v1/auth/password', <String, String>{
-      'currentPassword': ?currentPassword,
-      'newPassword': newPassword,
-    }, (Json json) => json['accessToken'] as String);
+    return _call(
+      'POST',
+      '/api/v1/auth/password',
+      (Object? json) => (json as Json)['accessToken'] as String,
+      body: <String, String>{
+        'currentPassword': ?currentPassword,
+        'newPassword': newPassword,
+      },
+    );
   }
 
-  Future<ApiResult<T>> _post<T>(
+  Future<ApiResult<SessionPage>> listSessions({String? cursor, int? limit}) {
+    return _call(
+      'GET',
+      '/api/v1/sessions',
+      (Object? json) => SessionPage.fromJson(json as Json),
+      query: _page(cursor, limit),
+    );
+  }
+
+  /// 최신 질문부터 내려온다.
+  Future<ApiResult<QuestionPage>> listQuestions(
+    String sessionId, {
+    String? cursor,
+    int? limit,
+  }) {
+    return _call(
+      'GET',
+      '/api/v1/sessions/$sessionId/questions',
+      (Object? json) => QuestionPage.fromJson(json as Json),
+      query: _page(cursor, limit),
+    );
+  }
+
+  Future<ApiResult<void>> deleteSession(String sessionId) {
+    return _call('DELETE', '/api/v1/sessions/$sessionId', (Object? _) {});
+  }
+
+  /// 결과는 질문 전송 SSE의 `stopped` 이벤트로 온다.
+  Future<ApiResult<void>> stopAnswer(String sessionId) {
+    return _call('POST', '/api/v1/sessions/$sessionId/stop', (Object? _) {});
+  }
+
+  /// 질문 전송. 성공하면 SSE 본문. 스트리밍 시작 전 실패는 일반 오류 응답이다.
+  Future<ApiResult<Stream<List<int>>>> sendQuestion(
+    String text, {
+    String? sessionId,
+  }) async {
+    final Json body = <String, String>{'text': text, 'sessionId': ?sessionId};
+    try {
+      final http.StreamedResponse response = await _send(
+        'POST',
+        '/api/v1/sessions/questions',
+        body: body,
+      );
+      if (_ok(response.statusCode)) {
+        return ApiOk<Stream<List<int>>>(response.stream);
+      }
+      final Object? json = await _readJson(response);
+      return ApiFailure<Stream<List<int>>>(_failed(response.statusCode, json));
+    } on Exception {
+      return const ApiFailure<Stream<List<int>>>(null);
+    }
+  }
+
+  Future<ApiResult<T>> _call<T>(
+    String method,
     String path,
-    Json body,
-    T Function(Json json) parse, {
+    T Function(Object? json) parse, {
+    Json? body,
+    Map<String, String>? query,
     bool withToken = true,
   }) async {
     try {
-      final http.Response response = await _http.post(
-        Uri.parse('$baseUrl$path'),
-        headers: _headers(withToken ? getAccessToken() : null),
-        body: jsonEncode(body),
+      final http.StreamedResponse response = await _send(
+        method,
+        path,
+        body: body,
+        query: query,
+        withToken: withToken,
       );
-      final Object? json = jsonDecode(utf8.decode(response.bodyBytes));
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return ApiOk<T>(parse(json as Json));
+      final Object? json = await _readJson(response);
+      if (_ok(response.statusCode)) {
+        return ApiOk<T>(parse(json));
       }
       return ApiFailure<T>(_failed(response.statusCode, json));
     } on Exception {
@@ -95,7 +160,24 @@ class ApiClient {
     }
   }
 
-  /// 로그인은 토큰 없이 부른다(규격 `security: []`).
+  Future<http.StreamedResponse> _send(
+    String method,
+    String path, {
+    Json? body,
+    Map<String, String>? query,
+    bool withToken = true,
+  }) {
+    final Uri url = Uri.parse('$baseUrl$path');
+    final http.Request request = http.Request(
+      method,
+      query == null ? url : url.replace(queryParameters: query),
+    )..headers.addAll(_headers(withToken ? getAccessToken() : null));
+    if (body != null) {
+      request.body = jsonEncode(body);
+    }
+    return _http.send(request);
+  }
+
   Map<String, String> _headers(String? token) {
     return <String, String>{
       'content-type': 'application/json',
@@ -103,6 +185,22 @@ class ApiClient {
       'ngrok-skip-browser-warning': '1',
       'Authorization': ?(token == null ? null : 'Bearer $token'),
     };
+  }
+
+  /// 본문이 없으면(204) null.
+  static Future<Object?> _readJson(http.StreamedResponse response) async {
+    final List<int> bytes = await response.stream.toBytes();
+    return bytes.isEmpty ? null : jsonDecode(utf8.decode(bytes));
+  }
+
+  static bool _ok(int status) => status >= 200 && status < 300;
+
+  static Map<String, String>? _page(String? cursor, int? limit) {
+    final Map<String, String> query = <String, String>{
+      'cursor': ?cursor,
+      'limit': ?limit?.toString(),
+    };
+    return query.isEmpty ? null : query;
   }
 
   ApiError? _failed(int status, Object? json) {

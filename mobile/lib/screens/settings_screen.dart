@@ -7,20 +7,18 @@ import '../theme/app_theme.dart';
 import '../theme/primer_tokens.dart';
 import '../widgets/form_parts.dart';
 
-/// 설정. 지금은 비밀번호 변경만 있다. 세션 목록 아래의 "설정"으로 연다(#25 전에는 채팅 자리에서).
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key, required this.controller});
+/// 설정 본문. 채팅 화면 틀(ChatScreen)의 본문 자리에 들어가고, 제목 "설정"은 틀의 위쪽 막대에 있다.
+/// 지금은 비밀번호 변경만 있다.
+class SettingsBody extends StatelessWidget {
+  const SettingsBody({super.key, required this.controller});
 
   final AuthController controller;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('설정')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(PrimerSize.stackPaddingNormal),
-        child: _PasswordPanel(controller: controller),
-      ),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(PrimerSize.stackPaddingNormal),
+      child: _PasswordPanel(controller: controller),
     );
   }
 }

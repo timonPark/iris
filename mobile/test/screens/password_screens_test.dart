@@ -9,6 +9,7 @@ import '../support/fake_api.dart';
 import '../support/finders.dart';
 
 const AuthStorage storage = AuthStorage();
+const String password = '/api/v1/auth/password';
 
 Future<void> startAs(
   WidgetTester tester,
@@ -45,6 +46,8 @@ Future<void> tapButton(WidgetTester tester, String label) async {
 }
 
 Future<void> openSettings(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('세션 목록 열기'));
+  await tester.pumpAndSettle();
   await tester.tap(find.text('설정'));
   await tester.pumpAndSettle();
 }
@@ -71,7 +74,7 @@ void main() {
       });
       await tapButton(tester, '변경하고 계속하기');
       expect(find.text('새 비밀번호가 서로 다릅니다.'), findsOneWidget);
-      expect(api.requests, isEmpty);
+      expect(api.requestsTo(password), isEmpty);
     });
 
     testWidgets('바꾸면 새 토큰을 저장하고 채팅 자리로 간다', (WidgetTester tester) async {
@@ -86,8 +89,8 @@ void main() {
       });
       await tapButton(tester, '변경하고 계속하기');
 
-      expect(find.text('채팅 화면은 준비 중입니다.'), findsOneWidget);
-      expect(requestJson(api.requests.single), <String, String>{
+      expect(find.text('Iris에게 질문하세요'), findsOneWidget);
+      expect(requestJson(api.requestsTo(password).single), <String, String>{
         'newPassword': 'newpass12',
       });
       final StoredAuth? stored = await storage.load();
@@ -154,7 +157,7 @@ void main() {
       await tapButton(tester, '비밀번호 변경');
 
       expect(find.text('비밀번호를 변경했습니다.'), findsOneWidget);
-      expect(requestJson(api.requests.single), <String, String>{
+      expect(requestJson(api.requestsTo(password).single), <String, String>{
         'currentPassword': 'oldpass12',
         'newPassword': 'newpass12',
       });

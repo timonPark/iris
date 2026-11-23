@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -156,5 +158,106 @@ void main() {
 
     expect((a as ApiFailure<LoginResponse>).error, isNull);
     expect((b as ApiFailure<String>).error, isNull);
+  });
+
+  test('세션 목록은 커서와 개수를 쿼리로 보내고 페이지를 읽는다', () async {
+    final FakeApi api = FakeApi(<String, FakeHandler>{
+      '/api/v1/sessions': (_) => sessionPage(<String>['가', '나'], next: 'c2'),
+    });
+
+    final ApiResult<SessionPage> result = await clientFor(
+      api.client,
+      token: 't',
+    ).listSessions(cursor: 'c1', limit: 20);
+
+    final SessionPage page = (result as ApiOk<SessionPage>).value;
+    expect(page.items.map((Session s) => s.title), <String>['가', '나']);
+    expect(page.items.first.id, 's0');
+    expect(page.nextCursor, 'c2');
+    final http.Request request = api.requests.single;
+    expect(request.method, 'GET');
+    expect(request.url.queryParameters, <String, String>{
+      'cursor': 'c1',
+      'limit': '20',
+    });
+  });
+
+  test('세션 열람은 질문과 답변을 읽는다', () async {
+    final FakeApi api = FakeApi(<String, FakeHandler>{
+      '/api/v1/sessions/s1/questions': (_) =>
+          questionPage(<(String, String, String)>[('질문', '답', 'stopped')]),
+    });
+
+    final ApiResult<QuestionPage> result = await clientFor(
+      api.client,
+      token: 't',
+    ).listQuestions('s1', limit: 100);
+
+    final Question q = (result as ApiOk<QuestionPage>).value.items.single;
+    expect(q.text, '질문');
+    expect(q.answer.text, '답');
+    expect(q.answer.status, AnswerStatus.stopped);
+    expect(api.requests.single.url.queryParameters, <String, String>{
+      'limit': '100',
+    });
+  });
+
+  test('세션 삭제와 답변 중지는 본문 없는 204를 성공으로 본다', () async {
+    final FakeApi api = FakeApi(<String, FakeHandler>{
+      '/api/v1/sessions/s1': (_) => http.Response('', 204),
+      '/api/v1/sessions/s1/stop': (_) => http.Response('', 204),
+    });
+    final ApiClient client = clientFor(api.client, token: 't');
+
+    expect(await client.deleteSession('s1'), isA<ApiOk<void>>());
+    expect(await client.stopAnswer('s1'), isA<ApiOk<void>>());
+    expect(api.requests.map((http.Request r) => r.method), <String>[
+      'DELETE',
+      'POST',
+    ]);
+  });
+
+  test('질문 전송은 스트림을 돌려주고, 지난 세션이면 세션 ID도 보낸다', () async {
+    final FakeApi api = FakeApi(<String, FakeHandler>{
+      '/api/v1/sessions/questions': (_) => sseReply(<String>[
+        sseEvent('delta', <String, Object>{'text': '답'}),
+      ]),
+    });
+
+    final ApiResult<Stream<List<int>>> result = await clientFor(
+      api.client,
+      token: 't',
+    ).sendQuestion('질문', sessionId: 's1');
+
+    final Stream<List<int>> body = (result as ApiOk<Stream<List<int>>>).value;
+    expect(
+      utf8.decode(await body.expand((List<int> b) => b).toList()),
+      contains('답'),
+    );
+    expect(requestJson(api.requests.single), <String, String>{
+      'text': '질문',
+      'sessionId': 's1',
+    });
+  });
+
+  test('질문 전송이 시작 전에 실패하면 오류이고 차단은 알린다', () async {
+    final List<AuthErrorCode> authErrors = <AuthErrorCode>[];
+    final FakeApi api = FakeApi(<String, FakeHandler>{
+      '/api/v1/sessions/questions': (_) =>
+          errorResponse(403, 'ACCOUNT_BLOCKED', '차단된 계정입니다.'),
+    });
+
+    final ApiResult<Stream<List<int>>> result = await clientFor(
+      api.client,
+      token: 't',
+      authErrors: authErrors,
+    ).sendQuestion('질문');
+
+    expect(
+      (result as ApiFailure<Stream<List<int>>>).error?.code,
+      'ACCOUNT_BLOCKED',
+    );
+    expect(authErrors, <AuthErrorCode>[AuthErrorCode.accountBlocked]);
+    expect(requestJson(api.requests.single), <String, String>{'text': '질문'});
   });
 }
