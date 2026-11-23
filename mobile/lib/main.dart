@@ -7,6 +7,7 @@ import 'screens/chat_screen.dart';
 import 'screens/force_change_screen.dart';
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
+import 'voice/voice_recorder.dart';
 
 void main() {
   runApp(IrisApp());
@@ -14,12 +15,16 @@ void main() {
 
 /// 앱 진입점. 테마는 기기의 라이트·다크 설정을 따르고, 화면은 로그인 상태를 따른다.
 class IrisApp extends StatefulWidget {
-  IrisApp({super.key, AuthController? controller})
+  IrisApp({super.key, AuthController? controller, VoiceRecorder? recorder})
     : controller =
           controller ??
-          AuthController(storage: const AuthStorage(), baseUrl: apiBaseUrl);
+          AuthController(storage: const AuthStorage(), baseUrl: apiBaseUrl),
+      recorder = recorder ?? DeviceVoiceRecorder();
 
   final AuthController controller;
+
+  /// 음성 입력의 녹음기. 테스트는 가짜로 바꾼다.
+  final VoiceRecorder recorder;
 
   @override
   State<IrisApp> createState() => _IrisAppState();
@@ -71,7 +76,10 @@ class _IrisAppState extends State<IrisApp> {
       AuthScreen.loading => const Scaffold(),
       AuthScreen.login => LoginScreen(controller: controller),
       AuthScreen.forceChange => ForceChangeScreen(controller: controller),
-      AuthScreen.home => ChatScreen(controller: controller),
+      AuthScreen.home => ChatScreen(
+        controller: controller,
+        recorder: widget.recorder,
+      ),
     };
   }
 }

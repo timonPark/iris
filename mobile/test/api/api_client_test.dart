@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -259,5 +260,57 @@ void main() {
     );
     expect(authErrors, <AuthErrorCode>[AuthErrorCode.accountBlocked]);
     expect(requestJson(api.requests.single), <String, String>{'text': '질문'});
+  });
+
+  test('음성 질문은 녹음 파일과 세션 ID를 multipart로 보내고 스트림을 돌려준다', () async {
+    final Directory dir = await Directory.systemTemp.createTemp('iris-test-');
+    final File audio = File('${dir.path}/voice.m4a')
+      ..writeAsBytesSync(<int>[7, 8, 9]);
+    final FakeApi api = FakeApi(<String, FakeHandler>{
+      '/api/v1/voice/questions': (_) => sseReply(<String>[
+        sseEvent('question', <String, Object>{'text': '보정된 질문'}),
+      ]),
+    });
+
+    final ApiResult<Stream<List<int>>> result = await clientFor(
+      api.client,
+      token: 't',
+    ).sendVoiceQuestion(audio.path, sessionId: 's1');
+
+    expect(result, isA<ApiOk<Stream<List<int>>>>());
+    final http.Request request = api.requests.single;
+    expect(request.headers['content-type'], startsWith('multipart/form-data'));
+    expect(request.headers['Authorization'], 'Bearer t');
+    final String body = latin1.decode(request.bodyBytes);
+    expect(body, contains('name="audio"; filename="voice.m4a"'));
+    expect(body, contains('name="sessionId"'));
+    expect(body, contains('s1'));
+  });
+
+  test('음성 질문이 인식에 실패하면 규격의 오류를 돌려준다', () async {
+    final Directory dir = await Directory.systemTemp.createTemp('iris-test-');
+    final File audio = File('${dir.path}/voice.m4a')
+      ..writeAsBytesSync(<int>[1]);
+    final FakeApi api = FakeApi(<String, FakeHandler>{
+      '/api/v1/voice/questions': (_) => errorResponse(
+        422,
+        'SPEECH_NOT_RECOGNIZED',
+        '음성을 인식하지 못했습니다. 다시 녹음해 주세요.',
+      ),
+    });
+
+    final ApiResult<Stream<List<int>>> result = await clientFor(
+      api.client,
+      token: 't',
+    ).sendVoiceQuestion(audio.path);
+
+    expect(
+      (result as ApiFailure<Stream<List<int>>>).error?.code,
+      'SPEECH_NOT_RECOGNIZED',
+    );
+    expect(
+      latin1.decode(api.requests.single.bodyBytes),
+      isNot(contains('sessionId')),
+    );
   });
 }

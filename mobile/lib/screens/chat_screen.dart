@@ -6,6 +6,8 @@ import '../api/api_models.dart';
 import '../auth/auth_controller.dart';
 import '../chat/chat_controller.dart';
 import '../chat/sessions_controller.dart';
+import '../voice/voice_controller.dart';
+import '../voice/voice_recorder.dart';
 import '../widgets/composer.dart';
 import '../widgets/delete_dialog.dart';
 import '../widgets/session_drawer.dart';
@@ -15,9 +17,14 @@ import 'settings_screen.dart';
 /// 로그인 뒤의 화면 틀: 세션 목록 서랍 + 본문(채팅 또는 설정).
 /// 모바일 앱을 새로 열면 빈 새 세션에서 시작한다.
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key, required this.controller});
+  const ChatScreen({
+    super.key,
+    required this.controller,
+    required this.recorder,
+  });
 
   final AuthController controller;
+  final VoiceRecorder recorder;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -31,6 +38,10 @@ class _ChatScreenState extends State<ChatScreen> {
     client: widget.controller.client,
     onSaved: _sessions.putOnTop,
   );
+  late final VoiceController _voice = VoiceController(
+    recorder: widget.recorder,
+    onRecorded: _chat.sendVoice,
+  );
   late final AppLifecycleListener _lifecycle;
   final GlobalKey<ScaffoldState> _scaffold = GlobalKey<ScaffoldState>();
   bool _settings = false;
@@ -42,12 +53,15 @@ class _ChatScreenState extends State<ChatScreen> {
     // 답변 중 연결이 끊겼으면 앞으로 왔을 때 그 세션을 다시 불러온다.
     _lifecycle = AppLifecycleListener(
       onResume: () => unawaited(_chat.resumed()),
+      // 녹음 중에 백그라운드로 가면 보내지 않고 버린다(GLOSSARY "음성 입력").
+      onHide: () => unawaited(_voice.cancelForBackground()),
     );
   }
 
   @override
   void dispose() {
     _lifecycle.dispose();
+    _voice.dispose();
     _chat.dispose();
     _sessions.dispose();
     super.dispose();
@@ -57,6 +71,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _open(Session session) {
     _closeDrawer();
+    // 녹음은 그 녹음을 시작한 세션의 것이라 다른 곳으로 가면 버린다.
+    unawaited(_voice.cancel());
     final bool same = session.id == _chat.sessionId;
     setState(() => _settings = false);
     // 지금 세션(답변을 받는 중일 수 있음)은 다시 불러오지 않는다.
@@ -67,6 +83,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _showSettings() {
     _closeDrawer();
+    unawaited(_voice.cancel());
     setState(() => _settings = true);
   }
 
@@ -87,7 +104,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge(<Listenable>[_chat, _sessions]),
+      listenable: Listenable.merge(<Listenable>[_chat, _sessions, _voice]),
       builder: (BuildContext context, Widget? _) => PopScope(
         // 기기의 뒤로 가기도 설정에서는 채팅으로 돌아온다.
         canPop: !_settings,
@@ -142,7 +159,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return Column(
       children: <Widget>[
         Expanded(child: ThreadView(chat: _chat)),
-        Composer(chat: _chat),
+        Composer(chat: _chat, voice: _voice),
       ],
     );
   }

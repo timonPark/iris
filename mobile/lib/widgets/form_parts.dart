@@ -211,3 +211,21 @@ ButtonStyle dangerButtonStyle(BuildContext context, PrimerColors c) {
         ?.copyWith(fontWeight: PrimerText.baseTextWeightSemibold),
   );
 }
+
+/// Primer 주 버튼(초록). 높이는 터치 최소 크기(44).
+ButtonStyle primaryButtonStyle(BuildContext context, PrimerColors c) {
+  return FilledButton.styleFrom(
+    minimumSize: const Size(0, PrimerSize.controlMinTargetCoarse),
+    padding: const EdgeInsets.symmetric(
+      horizontal: PrimerSize.controlMediumPaddingInlineNormal,
+    ),
+    backgroundColor: c.buttonPrimaryBgColorRest,
+    foregroundColor: c.buttonPrimaryFgColorRest,
+    side: BorderSide(color: c.buttonPrimaryBorderColorRest),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(PrimerRadius.borderRadiusMedium),
+    ),
+    textStyle: Theme.of(context).textTheme.bodyMedium
+        ?.copyWith(fontWeight: PrimerText.baseTextWeightSemibold),
+  );
+}
