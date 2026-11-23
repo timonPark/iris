@@ -85,6 +85,18 @@ void _expectTextTheme(TextTheme t, Color color) {
   _expectStyle(t.bodySmall, _bodySmall, color);
 }
 
+/// 위쪽 막대는 샘플(#5)의 topbar: 왼쪽 정렬 title-small 제목, 아래 테두리.
+void _expectAppBar(ThemeData theme, PrimerColors c) {
+  final AppBarThemeData bar = theme.appBarTheme;
+  expect(bar.backgroundColor, c.bgColorDefault);
+  expect(bar.foregroundColor, c.fgColorDefault);
+  expect(bar.centerTitle, isFalse);
+  expect(bar.elevation, 0);
+  expect(bar.scrolledUnderElevation, 0);
+  expect(bar.shape, Border(bottom: BorderSide(color: c.borderColorMuted)));
+  _expectStyle(bar.titleTextStyle, _titleSmall, c.fgColorDefault);
+}
+
 void main() {
   for (final (Brightness brightness, PrimerColors c)
       in <(Brightness, PrimerColors)>[
@@ -100,5 +112,6 @@ void main() {
       '$brightness 글자는 Primer 토큰이다',
       () => _expectTextTheme(theme.textTheme, c.fgColorDefault),
     );
+    test('$brightness 위쪽 막대는 샘플의 topbar다', () => _expectAppBar(theme, c));
   }
 }

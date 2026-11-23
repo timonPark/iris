@@ -7,11 +7,26 @@ ThemeData buildAppTheme(Brightness brightness) {
   final PrimerColors c = brightness == Brightness.dark
       ? PrimerColors.dark
       : PrimerColors.light;
+  final TextTheme text = _textTheme(c.fgColorDefault);
   return ThemeData(
     brightness: brightness,
     colorScheme: _colorScheme(brightness, c),
     scaffoldBackgroundColor: c.bgColorDefault,
-    textTheme: _textTheme(c.fgColorDefault),
+    textTheme: text,
+    appBarTheme: _appBarTheme(c, text),
+  );
+}
+
+/// 샘플(#5)의 topbar: 왼쪽 정렬 title-small 제목, 아래 테두리, 그림자 없음.
+AppBarThemeData _appBarTheme(PrimerColors c, TextTheme text) {
+  return AppBarThemeData(
+    backgroundColor: c.bgColorDefault,
+    foregroundColor: c.fgColorDefault,
+    centerTitle: false,
+    elevation: 0,
+    scrolledUnderElevation: 0,
+    shape: Border(bottom: BorderSide(color: c.borderColorMuted)),
+    titleTextStyle: text.titleSmall,
   );
 }
 
@@ -81,4 +96,11 @@ TextTheme _textTheme(Color color) {
     bodyMedium: style(_bodyMedium),
     bodySmall: style(_bodySmall),
   );
+}
+
+/// 지금 테마(라이트·다크)의 Primer 색.
+PrimerColors primerColorsOf(BuildContext context) {
+  return Theme.of(context).brightness == Brightness.dark
+      ? PrimerColors.dark
+      : PrimerColors.light;
 }
