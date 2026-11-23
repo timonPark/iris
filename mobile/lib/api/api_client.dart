@@ -113,14 +113,37 @@ class ApiClient {
   Future<ApiResult<Stream<List<int>>>> sendQuestion(
     String text, {
     String? sessionId,
-  }) async {
+  }) {
     final Json body = <String, String>{'text': text, 'sessionId': ?sessionId};
+    return _openStream(
+      () => _send('POST', '/api/v1/sessions/questions', body: body),
+    );
+  }
+
+  /// 음성 질문 전송(모바일 앱 전용). 녹음 파일을 올리면 SSE로 보정된 질문(`question`)과 답변이 온다.
+  Future<ApiResult<Stream<List<int>>>> sendVoiceQuestion(
+    String audioPath, {
+    String? sessionId,
+  }) {
+    return _openStream(() async {
+      final http.MultipartRequest request =
+          http.MultipartRequest(
+              'POST',
+              Uri.parse('$baseUrl/api/v1/voice/questions'),
+            )
+            ..headers.addAll(_headers(getAccessToken())..remove('content-type'))
+            ..files.add(await http.MultipartFile.fromPath('audio', audioPath));
+      if (sessionId != null) request.fields['sessionId'] = sessionId;
+      return _http.send(request);
+    });
+  }
+
+  /// 성공이면 본문 스트림, 아니면 오류 응답(차단·토큰 무효는 알린다).
+  Future<ApiResult<Stream<List<int>>>> _openStream(
+    Future<http.StreamedResponse> Function() send,
+  ) async {
     try {
-      final http.StreamedResponse response = await _send(
-        'POST',
-        '/api/v1/sessions/questions',
-        body: body,
-      );
+      final http.StreamedResponse response = await send();
       if (_ok(response.statusCode)) {
         return ApiOk<Stream<List<int>>>(response.stream);
       }

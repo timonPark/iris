@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- 백엔드 API 호출(#19). 릴리스 빌드에도 필요하다. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 음성 입력(#32). 녹음은 질문으로 바꾼 뒤 서버에서 바로 삭제한다. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application
         android:label="iris"
         android:name="${applicationName}"

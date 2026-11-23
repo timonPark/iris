@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.timonpark.iris"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_android(#32)가 37 이상을 요구한다.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -10,6 +10,7 @@ class ChatAnswer {
 }
 
 /// 스레드의 질문 하나와 그 답변. 답변 전에 실패하면 answer 없이 error만 있다.
+/// 음성 질문은 보정된 텍스트가 오기 전까지 [question]이 비어 있고 [pending]이다.
 class ChatItem {
   const ChatItem({
     required this.key,
@@ -17,6 +18,8 @@ class ChatItem {
     this.answer,
     this.error,
     this.notice,
+    this.pending = false,
+    this.autoStopped = false,
   });
 
   final String key;
@@ -29,29 +32,41 @@ class ChatItem {
   /// 알림(파란 상자). 연결이 끊긴 때.
   final String? notice;
 
-  ChatItem withAnswer(ChatAnswer? answer) => ChatItem(
-    key: key,
-    question: question,
-    answer: answer,
-    error: error,
-    notice: notice,
-  );
+  /// 음성을 질문으로 바꾸는 중.
+  final bool pending;
 
-  ChatItem withError(String error) => ChatItem(
-    key: key,
-    question: question,
-    answer: answer,
-    error: error,
-    notice: notice,
-  );
+  /// 녹음이 2분이 되어 자동으로 끝내고 보낸 음성 질문.
+  final bool autoStopped;
 
-  ChatItem withNotice(String notice) => ChatItem(
-    key: key,
-    question: question,
-    answer: answer,
-    error: error,
-    notice: notice,
-  );
+  ChatItem _copy({
+    String? question,
+    ChatAnswer? answer,
+    bool clearAnswer = false,
+    String? error,
+    String? notice,
+    bool? pending,
+  }) {
+    return ChatItem(
+      key: key,
+      question: question ?? this.question,
+      answer: clearAnswer ? null : (answer ?? this.answer),
+      error: error ?? this.error,
+      notice: notice ?? this.notice,
+      pending: pending ?? this.pending,
+      autoStopped: autoStopped,
+    );
+  }
+
+  ChatItem withAnswer(ChatAnswer? answer) =>
+      _copy(answer: answer, clearAnswer: answer == null);
+
+  ChatItem withError(String error) => _copy(error: error, pending: false);
+
+  ChatItem withNotice(String notice) => _copy(notice: notice);
+
+  /// 보정된 질문 텍스트가 왔다.
+  ChatItem withQuestion(String question) =>
+      _copy(question: question, pending: false);
 }
 
 /// 백엔드와 같이 코드 포인트(글자) 수로 센다.

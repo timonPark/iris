@@ -9,7 +9,7 @@
 
 루트 CLAUDE.md의 행동 지침을 따르며, mobile에서는 이렇게 적용합니다.
 
-- **먼저 묻기**: 녹음 버튼 동작과 최대 녹음 길이는 `../ssot/GLOSSARY.md`의 "음성 입력"을 따릅니다(#5에서 정함). 정의에 없는 동작은 임의로 정하지 않고 묻습니다. API 규격이 모호할 때도 추측하지 않습니다.
+- **먼저 묻기**: 녹음 버튼 동작, 최대 녹음 길이, 마이크 권한이 없을 때, 녹음 중 백그라운드로 갈 때는 `../ssot/GLOSSARY.md`의 "음성 입력"을 따릅니다(#5, #32에서 정함). 정의에 없는 동작은 임의로 정하지 않고 묻습니다. API 규격이 모호할 때도 추측하지 않습니다.
 - **단순하게**: 보정된 텍스트를 화면에 표시하고 바로 Hermes로 전송합니다. 수정 단계는 만들지 않습니다.
 - **필요한 곳만**: 음성 업로드는 모바일 전용 엔드포인트를 씁니다. 웹과 공유하는 API 규격은 임의로 바꾸지 않고, iOS와 Android 양쪽 영향을 확인합니다.
 - **검증 먼저**: 녹음 → 업로드 → 보정 텍스트 표시 → 답변 스트리밍 흐름을 단계별 검증 기준으로 정하고 구현합니다.
@@ -53,9 +53,22 @@ flutter build ios --simulator           # iOS 시뮬레이터용 빌드
 - **새 세션은 답변이 끝날 때 저장됩니다.** 목록에 올리고 지금 세션 ID로 정하는 것은 `done`, `stopped`, 조각을 받은 뒤의 `error`를 받았을 때입니다. 중지 API에는 `session` 이벤트의 ID를 씁니다(사용자 웹 #24와 같음).
 - 다른 세션을 열어도 받던 답변은 끝까지 읽어, 저장되면 목록에 올립니다. 화면 갱신은 generation이 같을 때만 합니다.
 - **연결이 끊기면**(끝 이벤트 없이 스트림이 끝남) 받은 부분까지 두고 안내합니다(`AnswerState.disconnected`, `../ssot/GLOSSARY.md` "답변"). 모바일 앱이 앞에 있으면 바로, 아니면 다시 앞으로 왔을 때(`AppLifecycleListener.onResume` → `ChatController.resumed`) 그 세션을 다시 불러와, 저장이 끝났으면 전체 답변으로 바꿉니다.
-- 답변은 일반 텍스트(줄바꿈 유지)로 보여줍니다. 마크다운과 링크 처리는 하지 않습니다(링크는 #39). 입력이 비었을 때의 녹음 버튼은 #32에서 붙입니다.
+- 답변은 일반 텍스트(줄바꿈 유지)로 보여줍니다. 마크다운과 링크 처리는 하지 않습니다(링크는 #39). 입력이 비었을 때는 녹음 버튼이 나옵니다(#32).
 - 테스트 도구(`test/support/fake_api.dart`): `sseReply`(한 번에 끝나는 SSE), `ControlledSse`(이벤트를 하나씩 흘리고 `cut`/`fail`로 끊음), `sessionPage`, `questionPage`, `requestsTo(path)`.
 - 기기 확인(Hermes 없는 PC): 볼륨 없는 PostgreSQL 컨테이너 + 임시 설정의 백엔드 + OpenAI 호환 가짜 Hermes + 임시 통합 테스트(`flutter drive`, 커밋하지 않음). 연결 끊김은 앱과 백엔드 사이에 TCP 중계를 두고 끊어서 확인합니다(#25 work_history 참고). Android는 `flutter drive`가 앱을 다시 설치해 로그인 상태가 지워지고, 스크린샷 전에 `convertFlutterSurfaceToImage()`가 필요합니다. iOS 시뮬레이터 앱의 `debugPrint`는 `flutter drive` 출력에 나오지 않습니다.
+
+## 음성 입력 (#32)
+
+- 구조: `lib/voice/`(`VoiceRecorder` 인터페이스와 기기 구현 `DeviceVoiceRecorder`, 녹음 상태 `VoiceController`), 녹음 막대 `lib/widgets/recorder_bar.dart`, 보내기는 `ChatController.sendVoice`. 별도 화면이 아니라 입력칸 자리가 녹음 막대로 바뀝니다(샘플 #5).
+- 녹음은 `record`(AAC, m4a, 모노)로 임시 폴더에 쓰고, 올린 뒤(성공·실패 모두) 앱이 지웁니다. 취소하면 `record`가 지웁니다. 백엔드가 ffmpeg로 변환하므로 형식은 상관없습니다.
+- 마이크 권한은 `permission_handler`로 묻고, 없으면 안내와 [설정 열기](`openAppSettings`)를 보입니다. iOS는 `Info.plist`의 `NSMicrophoneUsageDescription`, Android는 `RECORD_AUDIO`. iOS는 Swift Package Manager라 `Info.plist`에 설명이 있어야 권한 코드가 컴파일됩니다. `permission_handler_android`가 compileSdk 37 이상을 요구해 `android/app/build.gradle.kts`에 37로 두었습니다.
+- 2분은 `VoiceController.maxLength`(규격의 최대 녹음 길이). 녹음기 시작 직전의 시각(`clock.now()`, 테스트에서는 가짜 시간)부터 재고, **1초 남기고**(1:59) `finish(autoStopped: true)`로 보냅니다. 백엔드가 2분을 0.1초만 넘어도 `AUDIO_TOO_LONG`으로 거절하기 때문입니다(`backend/app/voice.py`의 `DURATION_TOLERANCE`).
+- 녹음 시작을 기다리는 중(권한, 녹음기)에는 다시 누르지 못하고, 그 사이 취소·백그라운드·화면 닫힘이 오면 시작 결과를 버립니다. 녹음기가 실패하면 정리하고 "녹음하지 못했습니다. 다시 시도해 주세요."를 보입니다. 녹음 중에 다른 세션이나 설정을 열면 녹음을 버립니다(녹음은 시작한 세션의 것).
+- 기기 녹음기는 녹음 파일 경로를 기억해 취소·실패 때 직접 지우고, 새로 녹음하기 전에 예전에 남은 `iris-voice-*` 파일을 지웁니다. 화면이 닫히면 녹음기를 놓습니다(`VoiceRecorder.dispose`).
+- 음성 질문 SSE는 `question`(보정된 질문)이 먼저 옵니다. 그 전까지 `ChatController.processingVoice`가 true이고 입력칸과 녹음 버튼을 쓸 수 없습니다.
+- 백그라운드로 가면(`AppLifecycleListener.onHide`) 녹음 중일 때만 버리고 안내합니다.
+- 테스트: 녹음기는 `test/support/fake_recorder.dart`로 바꿉니다(`IrisApp(recorder: ...)`). 위젯 테스트의 가짜 시간에서는 파일 비동기 입출력이 끝나지 않으므로, 가짜 녹음기는 파일을 동기로 만들고 업로드가 있는 화면 테스트는 `settleIo`(실제 시간과 가짜 시간을 번갈아 흘림)를 씁니다.
+- 기기 확인: 실제 인식은 이 PC에 `whisper-cli`(brew `whisper-cpp`)와 모델이 있어야 합니다(#32는 `small` 모델을 임시로 받아 씀). 시뮬레이터·에뮬레이터 마이크는 Mac 마이크라 **주변 대화까지 녹음되고 보정 요청(`claude`)으로 나갑니다.** 말소리가 필요 없는 확인은 Mac 입력 음량을 0으로 두고 하고, 말소리가 필요하면 먼저 사용자에게 묻습니다. Android 에뮬레이터는 `-allow-host-audio`로 켜야 마이크가 들어옵니다. `flutter drive`가 앱을 다시 설치하면 권한이 초기화되므로 설치 뒤에 `xcrun simctl privacy ... grant microphone`, `adb shell pm grant`로 줍니다. iOS 시뮬레이터는 `revoke`해도 "거절"이 아니라 "아직 묻지 않음"이 되어 권한 창이 뜨므로 거절 경로는 Android(`pm set-permission-flags ... user-fixed`)에서 확인합니다.
 
 ## Primer 토큰 (#6)
 

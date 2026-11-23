@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -372,5 +373,125 @@ void main() {
 
     expect(h.last.answer?.text, '전체');
     expect(h.last.notice, isNull);
+  });
+
+  group('음성 질문', () {
+    const String voice = '/api/v1/voice/questions';
+
+    Future<String> audioFile() async {
+      final Directory dir = await Directory.systemTemp.createTemp('iris-test-');
+      final File file = File('${dir.path}/voice.m4a');
+      await file.writeAsBytes(<int>[1, 2, 3]);
+      return file.path;
+    }
+
+    test('처리 중으로 보이다가 보정된 질문으로 바뀌고 답변이 이어진다', () async {
+      final ControlledSse sse = ControlledSse();
+      final Harness h = Harness(
+        FakeApi(
+          <String, FakeHandler>{},
+          streams: <String, FakeStreamHandler>{voice: sse.handler},
+        ),
+      );
+      final String path = await audioFile();
+
+      final Future<void> sending = h.chat.sendVoice(path);
+      await pumpEventQueue();
+      expect(h.chat.processingVoice, isTrue);
+      expect(h.last.pending, isTrue);
+      expect(h.last.question, isEmpty);
+
+      sse.send('session', <String, Object>{'id': 's1'});
+      sse.send('question', <String, Object>{'text': '내일 할 일 정리해 줘'});
+      sse.send('delta', <String, Object>{'text': '정리했습니다.'});
+      await pumpEventQueue();
+      expect(h.chat.processingVoice, isFalse);
+      expect(h.chat.streaming, isTrue);
+      expect(h.last.pending, isFalse);
+      expect(h.last.question, '내일 할 일 정리해 줘');
+
+      sse.send('done', <String, Object>{'answerId': 'a1'});
+      await sending;
+
+      expect(h.last.answer?.text, '정리했습니다.');
+      expect(h.chat.title, '내일 할 일 정리해 줘');
+      expect(h.saved.single.title, '내일 할 일 정리해 줘');
+      expect(File(path).existsSync(), isFalse, reason: '보낸 녹음 파일은 지운다');
+    });
+
+    test('인식에 실패하면 질문 없이 규격 문구를 보이고 녹음 파일을 지운다', () async {
+      final Harness h = Harness(
+        FakeApi(<String, FakeHandler>{
+          voice: (_) => errorResponse(
+            422,
+            'SPEECH_NOT_RECOGNIZED',
+            '음성을 인식하지 못했습니다. 다시 녹음해 주세요.',
+          ),
+        }),
+      );
+      final String path = await audioFile();
+
+      await h.chat.sendVoice(path);
+
+      expect(h.last.pending, isFalse);
+      expect(h.last.question, isEmpty);
+      expect(h.last.answer, isNull);
+      expect(h.last.error, '음성을 인식하지 못했습니다. 다시 녹음해 주세요.');
+      expect(h.chat.processingVoice, isFalse);
+      expect(h.chat.streaming, isFalse);
+      expect(File(path).existsSync(), isFalse);
+    });
+
+    test('2분 자동 종료로 보낸 질문은 그 안내를 함께 단다', () async {
+      final Harness h = Harness(
+        FakeApi(<String, FakeHandler>{
+          voice: (_) => sseReply(<String>[
+            sseEvent('session', <String, Object>{'id': 's1'}),
+            sseEvent('question', <String, Object>{'text': '긴 질문'}),
+            sseEvent('delta', <String, Object>{'text': '답'}),
+            sseEvent('done', <String, Object>{'answerId': 'a1'}),
+          ]),
+        }),
+      );
+
+      await h.chat.sendVoice(await audioFile(), autoStopped: true);
+
+      expect(h.last.autoStopped, isTrue);
+      expect(h.last.question, '긴 질문');
+    });
+
+    test('연결에 실패해도 녹음 파일을 지운다', () async {
+      final Harness h = Harness(
+        FakeApi(<String, FakeHandler>{voice: (_) => throw Exception('down')}),
+      );
+      final String path = await audioFile();
+
+      await h.chat.sendVoice(path);
+
+      expect(File(path).existsSync(), isFalse);
+      expect(h.last.error, '서버 오류가 발생했습니다. 잠시 후 다시 질문해 주세요.');
+      expect(h.chat.processingVoice, isFalse);
+    });
+
+    test('보정된 질문 전에 오류 이벤트가 오면 처리 중을 끝내고 안내', () async {
+      final Harness h = Harness(
+        FakeApi(<String, FakeHandler>{
+          voice: (_) => sseReply(<String>[
+            sseEvent('session', <String, Object>{'id': 's1'}),
+            sseEvent('error', <String, Object>{
+              'code': 'SERVER_ERROR',
+              'message': '서버 오류',
+            }),
+          ]),
+        }),
+      );
+
+      await h.chat.sendVoice(await audioFile());
+
+      expect(h.chat.processingVoice, isFalse);
+      expect(h.chat.streaming, isFalse);
+      expect(h.last.pending, isFalse);
+      expect(h.last.error, '서버 오류가 발생했습니다. 잠시 후 다시 질문해 주세요.');
+    });
   });
 }

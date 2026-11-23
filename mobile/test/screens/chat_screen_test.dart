@@ -58,7 +58,10 @@ void main() {
 
     expect(find.text('새 세션'), findsOneWidget);
     expect(find.text('Iris에게 질문하세요'), findsOneWidget);
-    expect(find.text('지난 대화는 세션 목록에서 볼 수 있습니다.'), findsOneWidget);
+    expect(
+      find.text('입력하거나 녹음 버튼을 눌러 말해 보세요. 지난 대화는 세션 목록에서 볼 수 있습니다.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('질문하면 답변이 스트리밍되고 중지 버튼이 보인다', (WidgetTester tester) async {
@@ -86,7 +89,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('답변을 받는 중…'), findsNothing);
-    expect(find.byTooltip('질문 보내기'), findsOneWidget);
+    // 입력이 비어 있으므로 보내기 자리는 녹음 버튼이다(#32).
+    expect(find.byTooltip('녹음 시작'), findsOneWidget);
   });
 
   testWidgets('답변이 끝나면 같은 세션에 이어서 질문한다', (WidgetTester tester) async {

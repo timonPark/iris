@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 
@@ -19,7 +20,9 @@ class _Run {
 
   final int gen;
   final String key;
-  final String title;
+
+  /// 세션 제목. 음성 질문의 새 세션은 보정된 질문이 올 때 정해진다.
+  String title;
 
   /// 이 질문의 세션. 새 세션이면 `session` 이벤트로 정해진다.
   String? sessionId;
@@ -53,6 +56,9 @@ class ChatController extends ChangeNotifier {
   List<ChatItem> items = const <ChatItem>[];
   bool streaming = false;
 
+  /// 음성 질문을 보정된 질문으로 바꾸는 중(입력칸과 녹음 버튼을 쓸 수 없다).
+  bool processingVoice = false;
+
   /// 중지할 수 있다(서버에 진행 중인 답변이 있고 세션 ID를 안다).
   bool canStop = false;
   bool loading = false;
@@ -75,12 +81,41 @@ class ChatController extends ChangeNotifier {
     return state == null || state == AppLifecycleState.resumed;
   }
 
-  Future<void> send(String text) async {
-    final _Run run = _begin(text);
-    final ApiResult<Stream<List<int>>> result = await client.sendQuestion(
-      text,
-      sessionId: run.sessionId,
+  Future<void> send(String text) {
+    final _Run run = _begin(
+      (String key) => ChatItem(
+        key: key,
+        question: text,
+        answer: const ChatAnswer('', AnswerState.streaming),
+      ),
+      title ?? text,
     );
+    return _ask(run, client.sendQuestion(text, sessionId: run.sessionId));
+  }
+
+  /// 음성 질문. 보정된 질문(`question` 이벤트)이 올 때까지 "처리 중"이고, 올린 녹음 파일은 지운다.
+  Future<void> sendVoice(String path, {bool autoStopped = false}) {
+    final _Run run = _begin(
+      (String key) => ChatItem(
+        key: key,
+        question: '',
+        pending: true,
+        autoStopped: autoStopped,
+      ),
+      title ?? '',
+    );
+    _set(() => processingVoice = true);
+    final Future<ApiResult<Stream<List<int>>>> request = client
+        .sendVoiceQuestion(path, sessionId: run.sessionId)
+        .whenComplete(() => _deleteQuietly(path));
+    return _ask(run, request);
+  }
+
+  Future<void> _ask(
+    _Run run,
+    Future<ApiResult<Stream<List<int>>>> request,
+  ) async {
+    final ApiResult<Stream<List<int>>> result = await request;
     switch (result) {
       case ApiFailure<Stream<List<int>>>(:final ApiError? error):
         _update(
@@ -96,32 +131,34 @@ class ChatController extends ChangeNotifier {
       _set(() {
         streaming = false;
         canStop = false;
+        processingVoice = false;
       });
     }
   }
 
   /// 질문을 스레드에 붙이고 받는 중으로 바꾼다.
-  _Run _begin(String text) {
+  _Run _begin(ChatItem Function(String key) item, String runTitle) {
     final _Run run = _Run(
       gen: _generation,
       key: 'new-${_nextKey++}',
-      title: title ?? text,
+      title: runTitle,
       sessionId: sessionId,
     );
     _pendingId = sessionId;
     _set(() {
-      items = <ChatItem>[
-        ...items,
-        ChatItem(
-          key: run.key,
-          question: text,
-          answer: const ChatAnswer('', AnswerState.streaming),
-        ),
-      ];
+      items = <ChatItem>[...items, item(run.key)];
       streaming = true;
       canStop = false;
     });
     return run;
+  }
+
+  static Future<void> _deleteQuietly(String path) async {
+    try {
+      await File(path).delete();
+    } on FileSystemException {
+      // 이미 없으면 그만이다.
+    }
   }
 
   /// 결과는 SSE의 `stopped` 이벤트로 온다. 이미 끝났으면(NOT_STREAMING) 할 일이 없다.
@@ -208,9 +245,16 @@ class ChatController extends ChangeNotifier {
         _finish(run, AnswerState.stopped);
       case ErrorEvent(:final String code, :final String message):
         _onError(run, ApiError(code: code, message: message));
-      case QuestionEvent():
-        break;
+      case QuestionEvent(:final String text):
+        _onQuestion(run, text);
     }
+  }
+
+  /// 음성 질문의 보정된 텍스트. 이때부터 처리 중이 끝나고 답변을 받는다.
+  void _onQuestion(_Run run, String text) {
+    if (run.title.isEmpty) run.title = text;
+    if (_current(run)) _set(() => processingVoice = false);
+    _update(run, (ChatItem i) => i.withQuestion(text));
   }
 
   void _onDelta(_Run run, String text) {
@@ -290,6 +334,7 @@ class ChatController extends ChangeNotifier {
       items = const <ChatItem>[];
       streaming = false;
       canStop = false;
+      processingVoice = false;
       loading = isLoading;
       loadError = null;
     });

@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../auth/messages.dart';
 import '../chat/chat_controller.dart';
 import '../chat/chat_item.dart';
 import '../theme/app_theme.dart';
@@ -48,9 +49,8 @@ class _Empty extends StatelessWidget {
           spacing: PrimerSize.baseSize8,
           children: <Widget>[
             Text('Iris에게 질문하세요', style: text.titleMedium),
-            // 녹음 버튼 안내는 음성 입력(#32)에서 샘플 문구로 바꾼다.
             Text(
-              '지난 대화는 세션 목록에서 볼 수 있습니다.',
+              '입력하거나 녹음 버튼을 눌러 말해 보세요. 지난 대화는 세션 목록에서 볼 수 있습니다.',
               textAlign: TextAlign.center,
               style: text.bodyMedium?.copyWith(
                 color: primerColorsOf(context).fgColorMuted,
@@ -75,7 +75,12 @@ class _Item extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: PrimerSize.stackGapSpacious,
       children: <Widget>[
-        _QuestionBubble(text: item.question),
+        // 2분 자동 종료 안내는 처리 중일 때만(샘플): 보정된 질문이 오면 일반 질문과 같다.
+        if (item.autoStopped && item.pending)
+          const Flash(text: Messages.voiceAutoStopped, kind: FlashKind.info),
+        if (item.pending)
+          const _QuestionBubble(text: Messages.voiceProcessing, pending: true),
+        if (item.question.isNotEmpty) _QuestionBubble(text: item.question),
         if (answer != null) _AnswerView(answer: answer),
         if (item.notice != null)
           Flash(text: item.notice!, kind: FlashKind.info),
@@ -88,9 +93,12 @@ class _Item extends StatelessWidget {
 
 /// 질문 말풍선: 오른쪽 정렬, 최대 너비는 전체에서 큰 컨트롤 하나만큼 뺀 값.
 class _QuestionBubble extends StatelessWidget {
-  const _QuestionBubble({required this.text});
+  const _QuestionBubble({required this.text, this.pending = false});
 
   final String text;
+
+  /// 음성을 질문으로 바꾸는 중(점 아이콘과 함께).
+  final bool pending;
 
   @override
   Widget build(BuildContext context) {
@@ -107,8 +115,25 @@ class _QuestionBubble extends StatelessWidget {
             color: primerColorsOf(context).bgColorMuted,
             borderRadius: BorderRadius.circular(PrimerRadius.borderRadiusLarge),
           ),
-          child: Text(text, style: Theme.of(context).textTheme.bodyLarge),
+          child: pending ? _pendingText(context) : _text(context),
         ),
+      ),
+    );
+  }
+
+  Widget _text(BuildContext context) =>
+      Text(text, style: Theme.of(context).textTheme.bodyLarge);
+
+  Widget _pendingText(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: PrimerSize.baseSize8,
+        children: <Widget>[
+          const Icon(Icons.more_horiz, size: PrimerText.textBodySizeLarge),
+          Flexible(child: _text(context)),
+        ],
       ),
     );
   }
