@@ -4,9 +4,9 @@
 |---|---|
 | 이슈 | #13 (https://github.com/timonPark/iris/issues/13) |
 | 브랜치 | 2026-11-22-13-mobile-flutter-setup |
-| 상태 | 검증 대기 |
+| 상태 | 완료 |
 | 시작일자 | 2026-11-22 |
-| 종료일자 | |
+| 종료일자 | 2026-11-23 |
 
 ## 작업 내용
 
@@ -53,6 +53,7 @@
 - 2026-11-23 Xcode 27에는 Simulator 앱이 기존 위치에 없어 `open -a Simulator`가 실패 → `mobile/CLAUDE.md`를 `xcrun simctl boot "iPhone 17"`로 고침(창 없이 켜지고 `flutter devices`에 잡힘).
 - 2026-11-23 코드 리뷰(codex, agy) 반영(결과 참고).
 - 2026-11-23 PR #64를 올리고 상태를 `검증 대기`로 변경.
+- 2026-11-23 사용자 검증 후 머지 지시. 상태 `완료`. `ssot/PRIMER.md`에 테마 연결을 올릴지는 답을 받지 못해 남은 일로 둠.
 
 ## 결과
 
