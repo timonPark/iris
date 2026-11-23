@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="ko" data-color-mode="light" data-light-theme="light" data-dark-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iris 모바일 앱 샘플</title>
+<!-- 모바일 앱 샘플 화면 (#5). 실제 동작은 없다. 토큰은 ssot/PRIMER.md의 고정 버전을 쓴다.
+     사용자 웹 샘플(docs/samples/web, #3)의 좁은 화면과 같은 구성에 음성 입력을 더했다. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@primer/primitives@11.10.0/dist/css/primitives.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@primer/primitives@11.10.0/dist/css/functional/themes/light.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@primer/primitives@11.10.0/dist/css/functional/themes/dark.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; flex-direction: column;
+    background: var(--bgColor-inset); color: var(--fgColor-default);
+    font: var(--text-body-shorthand-medium);
+  }
+  button, input, textarea { color: inherit; }
+  .icon { width: var(--base-size-16); height: var(--base-size-16); flex: none; }
+
+  /* ---------- 샘플 도구 (실제 화면에는 없다) ---------- */
+  .tools {
+    display: flex; flex-direction: column; gap: var(--space-sm);
+    padding: var(--stack-padding-condensed) var(--stack-padding-normal);
+    background: var(--bgColor-muted); color: var(--fgColor-default);
+    border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+  }
+  .tools__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
+  .tools__name { font: var(--text-body-shorthand-small); font-weight: var(--base-text-weight-semibold); }
+  .tools__group { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+  .tools__desc { margin: 0; font: var(--text-body-shorthand-small); }
+  .chip {
+    padding: var(--space-xxs) var(--space-sm);
+    border: var(--borderWidth-thin) solid var(--button-default-borderColor-rest);
+    border-radius: var(--borderRadius-full);
+    background: var(--button-default-bgColor-rest); color: var(--button-default-fgColor-rest);
+    font: var(--text-body-shorthand-small); cursor: pointer;
+    transition: background-color var(--motion-transition-hover);
+  }
+  .chip:hover { background: var(--button-default-bgColor-hover); }
+  .chip:active { background: var(--button-default-bgColor-active); }
+  .chip:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-outline-offset); }
+  .chip[aria-pressed="true"] {
+    background: var(--bgColor-accent-emphasis); color: var(--fgColor-onEmphasis);
+    border-color: var(--borderColor-accent-emphasis);
+  }
+
+  /* 휴대폰 프레임. 기기 크기는 토큰이 아니라 샘플 도구 값이다: 390×844 (iPhone 논리 크기) */
+  .stage { flex: 1; min-height: 0; overflow: auto; display: flex; justify-content: center; padding: var(--stack-padding-normal); }
+  .frame {
+    position: relative; flex: none; display: flex; flex-direction: column; overflow: hidden;
+    width: 24.375rem; height: 52.75rem;
+    border: var(--borderWidth-thin) solid var(--borderColor-default);
+    border-radius: var(--borderRadius-large); box-shadow: var(--shadow-resting-medium);
+    background: var(--bgColor-default);
+  }
+  .statusbar {
+    flex: none; display: flex; align-items: center; justify-content: space-between;
+    height: var(--base-size-44); padding: 0 var(--stack-padding-spacious);
+    font: var(--text-body-shorthand-medium); font-weight: var(--base-text-weight-semibold);
+  }
+  .homebar { flex: none; display: flex; justify-content: center; padding: var(--space-sm) 0; }
+  .homebar::before {
+    content: ""; width: var(--base-size-128); height: var(--base-size-4);
+    border-radius: var(--borderRadius-full); background: var(--fgColor-default);
+  }
+  .screen { flex: 1; min-height: 0; display: flex; position: relative; }
+
+  /* ---------- 버튼 ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--control-medium-gap);
+    min-height: var(--control-minTarget-coarse); padding: 0 var(--control-medium-paddingInline-normal);
+    border: var(--borderWidth-thin) solid var(--button-default-borderColor-rest);
+    border-radius: var(--borderRadius-medium);
+    background: var(--button-default-bgColor-rest); color: var(--button-default-fgColor-rest);
+    font: var(--text-body-shorthand-medium); font-weight: var(--base-text-weight-semibold);
+    cursor: pointer; white-space: nowrap;
+    transition: background-color var(--motion-transition-hover), border-color var(--motion-transition-hover);
+  }
+  .btn:hover { background: var(--button-default-bgColor-hover); border-color: var(--button-default-borderColor-hover); }
+  .btn:active { background: var(--button-default-bgColor-active); border-color: var(--button-default-borderColor-active); }
+  .btn:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-outline-offset); }
+  .btn:disabled {
+    background: var(--button-default-bgColor-disabled); color: var(--button-default-fgColor-disabled);
+    border-color: var(--button-default-borderColor-disabled); cursor: not-allowed;
+  }
+  .btn--primary {
+    background: var(--button-primary-bgColor-rest); color: var(--button-primary-fgColor-rest);
+    border-color: var(--button-primary-borderColor-rest);
+  }
+  .btn--primary:hover { background: var(--button-primary-bgColor-hover); border-color: var(--button-primary-borderColor-hover); }
+  .btn--primary:active { background: var(--button-primary-bgColor-active); border-color: var(--button-primary-borderColor-active); }
+  .btn--primary:disabled {
+    background: var(--button-primary-bgColor-disabled); color: var(--button-primary-fgColor-disabled);
+    border-color: var(--button-primary-borderColor-disabled);
+  }
+  .btn--danger {
+    background: var(--button-danger-bgColor-rest); color: var(--button-danger-fgColor-rest);
+    border-color: var(--button-danger-borderColor-rest);
+  }
+  .btn--danger:hover {
+    background: var(--button-danger-bgColor-hover); color: var(--button-danger-fgColor-hover);
+    border-color: var(--button-danger-borderColor-hover);
+  }
+  .btn--danger:active {
+    background: var(--button-danger-bgColor-active); color: var(--button-danger-fgColor-active);
+    border-color: var(--button-danger-borderColor-active);
+  }
+  .btn--danger:disabled {
+    background: var(--button-danger-bgColor-disabled); color: var(--button-danger-fgColor-disabled);
+    border-color: var(--button-default-borderColor-disabled);
+  }
+  .btn--invisible {
+    background: var(--button-invisible-bgColor-rest); color: var(--button-invisible-fgColor-rest);
+    border-color: var(--button-invisible-borderColor-rest);
+  }
+  .btn--invisible:hover {
+    background: var(--button-invisible-bgColor-hover); color: var(--button-invisible-fgColor-hover);
+    border-color: var(--button-invisible-borderColor-hover);
+  }
+  .btn--invisible:active { background: var(--button-invisible-bgColor-active); color: var(--button-invisible-fgColor-active); }
+  .btn--invisible:disabled {
+    background: var(--button-invisible-bgColor-disabled); color: var(--button-invisible-fgColor-disabled);
+    border-color: var(--button-invisible-borderColor-disabled);
+  }
+  /* 터치 화면이라 아이콘 버튼은 최소 터치 크기(44)로 둔다 */
+  .btn--icon { width: var(--control-minTarget-coarse); min-height: var(--control-minTarget-coarse); padding: 0; }
+  .btn--block { width: 100%; min-height: var(--control-large-size); }
+
+  /* ---------- 입력 ---------- */
+  .field { display: flex; flex-direction: column; gap: var(--space-xs); }
+  .field__label { font: var(--text-body-shorthand-medium); font-weight: var(--base-text-weight-semibold); }
+  .field__hint { font: var(--text-body-shorthand-small); color: var(--fgColor-muted); }
+  .input {
+    min-height: var(--control-large-size); padding: 0 var(--control-large-paddingInline-normal);
+    border: var(--borderWidth-thin) solid var(--borderColor-default); border-radius: var(--borderRadius-medium);
+    background: var(--bgColor-default); font: var(--text-body-shorthand-large);
+    transition: border-color var(--motion-transition-hover);
+  }
+  .input:hover { border-color: var(--borderColor-emphasis); }
+  .input:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-outline-offset); }
+  .input:disabled {
+    background: var(--bgColor-disabled); color: var(--fgColor-disabled);
+    border-color: var(--borderColor-disabled); cursor: not-allowed;
+  }
+
+  /* ---------- 안내 ---------- */
+  .flash {
+    display: flex; align-items: flex-start; gap: var(--space-sm);
+    padding: var(--stack-padding-condensed) var(--stack-padding-normal);
+    border: var(--borderWidth-thin) solid var(--borderColor-danger-muted); border-radius: var(--borderRadius-medium);
+    background: var(--bgColor-danger-muted); color: var(--fgColor-default);
+  }
+  .flash .icon { margin-top: var(--space-xxs); color: var(--fgColor-danger); }
+  .flash p { margin: 0; }
+  .flash--info { border-color: var(--borderColor-accent-muted); background: var(--bgColor-accent-muted); }
+  .flash--info .icon { color: var(--fgColor-accent); }
+
+  /* ---------- 로그인과 비밀번호 강제 변경 ---------- */
+  .auth {
+    flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto;
+    padding: var(--stack-padding-spacious) var(--stack-padding-normal);
+  }
+  .auth__card { width: 100%; display: flex; flex-direction: column; gap: var(--stack-gap-normal); }
+  /* 좁은 화면이라 title-large 대신 title-medium (ssot/PRIMER.md 3번 규칙) */
+  .auth__brand { margin: 0; text-align: center; font: var(--text-title-shorthand-medium); }
+  .auth__title { margin: 0; font: var(--text-title-shorthand-medium); }
+  .auth__desc { margin: 0; color: var(--fgColor-muted); }
+  .auth__note { margin: 0; text-align: center; font: var(--text-body-shorthand-small); color: var(--fgColor-muted); }
+
+  /* ---------- 채팅 앱 틀: 세션 목록은 늘 서랍으로 연다 ---------- */
+  .app { flex: 1; display: flex; min-width: 0; position: relative; }
+  .sidebar {
+    position: absolute; inset: 0 auto 0 0; z-index: var(--zIndex-overlay);
+    width: calc(100% - var(--control-large-size)); display: flex; flex-direction: column;
+    background: var(--bgColor-muted); color: var(--fgColor-default);
+    border-right: var(--borderWidth-thin) solid var(--borderColor-default);
+    transform: translateX(-100%); transition: transform var(--motion-transition-exit);
+  }
+  .app.is-drawer-open .sidebar { z-index: var(--zIndex-modal); transform: none; box-shadow: var(--shadow-floating-large); transition: transform var(--motion-transition-enter); }
+  .drawer-backdrop { display: none; }
+  .app.is-drawer-open .drawer-backdrop {
+    display: block; position: absolute; inset: 0; z-index: var(--zIndex-overlay);
+    background: var(--overlay-backdrop-bgColor);
+  }
+  .sidebar__head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--stack-padding-condensed) var(--stack-padding-normal);
+  }
+  .sidebar__brand { margin: 0; font: var(--text-title-shorthand-small); }
+  .sidebar__heading {
+    margin: 0; padding: var(--space-sm) var(--stack-padding-normal) var(--space-xs);
+    font: var(--text-body-shorthand-small); font-weight: var(--base-text-weight-semibold);
+  }
+  .sessions { flex: 1; overflow: auto; margin: 0; padding: 0 var(--stack-padding-condensed); list-style: none; }
+  .session { display: flex; align-items: center; border-radius: var(--borderRadius-medium); }
+  .session:active { background: var(--button-invisible-bgColor-active); }
+  .session__link {
+    flex: 1; min-width: 0; padding: var(--control-medium-paddingBlock) var(--control-medium-paddingInline-condensed);
+    border-radius: var(--borderRadius-medium); color: var(--fgColor-default); text-decoration: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .session__link:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-outline-offset); }
+  .session__link[aria-current="page"] { font-weight: var(--base-text-weight-semibold); }
+  .session:has([aria-current="page"]) { background: var(--bgColor-accent-muted); }
+  .sessions__more {
+    display: flex; align-items: center; justify-content: center; gap: var(--space-sm);
+    padding: var(--space-md); font: var(--text-body-shorthand-small);
+  }
+  .sidebar__foot {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+    padding: var(--stack-padding-condensed) var(--stack-padding-normal);
+    border-top: var(--borderWidth-thin) solid var(--borderColor-default);
+  }
+  .sidebar__user { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar {
+    display: flex; align-items: center; gap: var(--space-sm); min-height: var(--control-large-size);
+    padding: var(--space-xs) var(--stack-padding-condensed);
+    border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted);
+  }
+  .topbar__title { margin: 0; min-width: 0; font: var(--text-title-shorthand-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---------- 스레드 ---------- */
+  .thread { flex: 1; overflow: auto; padding: var(--stack-padding-normal); }
+  .thread__inner { display: flex; flex-direction: column; gap: var(--stack-gap-spacious); }
+  .question {
+    align-self: flex-end; max-width: calc(100% - var(--control-large-size)); margin: 0;
+    padding: var(--space-sm) var(--space-md); border-radius: var(--borderRadius-large);
+    background: var(--bgColor-muted); color: var(--fgColor-default);
+    font: var(--text-body-shorthand-large); white-space: pre-wrap;
+  }
+  .question--pending { display: flex; align-items: center; gap: var(--space-sm); }
+  .answer { display: flex; flex-direction: column; gap: var(--space-sm); font: var(--text-body-shorthand-large); }
+  .answer p { margin: 0; white-space: pre-wrap; }
+  .answer__meta { display: flex; align-items: center; gap: var(--space-sm); font: var(--text-body-shorthand-small); color: var(--fgColor-muted); }
+  .caret {
+    display: inline-block; width: var(--base-size-8); height: var(--text-body-size-large);
+    margin-left: var(--space-xxs); vertical-align: text-bottom;
+    border-radius: var(--borderRadius-small); background: var(--fgColor-accent);
+  }
+  .label {
+    display: inline-flex; align-items: center; padding: 0 var(--space-sm);
+    border: var(--borderWidth-thin) solid var(--borderColor-attention-emphasis); border-radius: var(--borderRadius-full);
+    color: var(--fgColor-attention); font: var(--text-body-shorthand-small);
+  }
+  .empty {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: var(--space-sm); padding: var(--stack-padding-spacious); text-align: center;
+  }
+  .empty__title { margin: 0; font: var(--text-title-shorthand-medium); }
+  .empty__desc { margin: 0; color: var(--fgColor-muted); }
+
+  /* ---------- 질문 입력 ---------- */
+  .composer { padding: var(--stack-padding-condensed); }
+  .composer__box {
+    display: flex; align-items: flex-end; gap: var(--space-sm);
+    padding: var(--space-xs); border: var(--borderWidth-thin) solid var(--borderColor-default);
+    border-radius: var(--borderRadius-large); background: var(--bgColor-default); box-shadow: var(--shadow-resting-small);
+  }
+  .composer__box:focus-within { outline: var(--focus-outline); }
+  .composer__input {
+    flex: 1; min-width: 0; max-height: var(--base-size-128); align-self: center; padding: var(--space-xs) var(--space-sm);
+    border: 0; background: transparent; resize: none; font: var(--text-body-shorthand-large);
+  }
+  .composer__input:focus { outline: none; }
+  .composer__input:disabled { color: var(--fgColor-disabled); }
+
+  /* ---------- 녹음 ---------- */
+  .recorder {
+    display: flex; flex-direction: column; gap: var(--space-sm);
+    padding: var(--space-sm); border: var(--borderWidth-thin) solid var(--borderColor-danger-muted);
+    border-radius: var(--borderRadius-large); background: var(--bgColor-danger-muted);
+  }
+  .recorder__row { display: flex; align-items: center; gap: var(--space-sm); }
+  .recorder__status { flex: 1; display: flex; align-items: center; gap: var(--space-sm); font-weight: var(--base-text-weight-semibold); }
+  .recorder__dot { width: var(--base-size-12); height: var(--base-size-12); border-radius: var(--borderRadius-full); background: var(--bgColor-danger-emphasis); }
+  .recorder__time { font: var(--text-body-shorthand-large); font-variant-numeric: tabular-nums; }
+  .recorder__track { height: var(--base-size-4); border-radius: var(--borderRadius-full); background: var(--bgColor-neutral-muted); overflow: hidden; }
+  .recorder__fill { height: 100%; background: var(--bgColor-danger-emphasis); }
+
+  /* ---------- 설정 ---------- */
+  .page { flex: 1; overflow: auto; padding: var(--stack-padding-normal); }
+  .panel {
+    display: flex; flex-direction: column; gap: var(--stack-gap-normal);
+    padding: var(--stack-padding-normal); border: var(--borderWidth-thin) solid var(--borderColor-default);
+    border-radius: var(--borderRadius-medium);
+  }
+  .panel__title { margin: 0; font: var(--text-title-shorthand-small); }
+
+  /* ---------- 대화상자 ---------- */
+  .backdrop {
+    position: absolute; inset: 0; z-index: var(--zIndex-modal);
+    display: flex; align-items: center; justify-content: center; padding: var(--stack-padding-normal);
+    background: var(--overlay-backdrop-bgColor);
+  }
+  .dialog {
+    width: 100%; display: flex; flex-direction: column; gap: var(--stack-gap-normal);
+    padding: var(--overlay-padding-normal); border: var(--borderWidth-thin) solid var(--overlay-borderColor);
+    border-radius: var(--overlay-borderRadius); background: var(--overlay-bgColor); box-shadow: var(--shadow-floating-large);
+  }
+  .dialog__title { margin: 0; font: var(--text-title-shorthand-small); }
+  .dialog__body { margin: 0; }
+  .dialog__actions { display: flex; justify-content: flex-end; gap: var(--space-sm); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 아이콘 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-menu" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 16 16"><path d="M2.5 4h11M6.5 4V2.5h3V4M4 4l.7 9.5h6.6L12 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></g></symbol>
+  <symbol id="i-send" viewBox="0 0 16 16"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 16 16"><rect x="4" y="4" width="8" height="8" rx="1.5" fill="currentColor"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8L1.2 13.8h13.6z"/><path d="M8 6.3v3.4M8 11.6v.1"/></g></symbol>
+  <symbol id="i-info" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6.25"/><path d="M8 7.2v4M8 4.8v.1"/></g></symbol>
+  <symbol id="i-mic" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="1.5" width="5" height="8" rx="2.5"/><path d="M3 7.5a5 5 0 0 0 10 0M8 12.5v2"/></g></symbol>
+  <symbol id="i-dots" viewBox="0 0 16 16"><g fill="currentColor"><circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/></g></symbol>
+</svg>
+
+<header class="tools" aria-label="샘플 도구">
+  <div class="tools__row">
+    <span class="tools__name">화면</span>
+    <div class="tools__group">
+      <button class="chip" data-group="screen" data-value="login" data-desc="아이디와 비밀번호로 로그인한다. 가입 기능은 없다.">로그인</button>
+      <button class="chip" data-group="screen" data-value="login-blocked" data-desc="차단된 계정으로 로그인하거나, 쓰는 도중에 차단(ACCOUNT_BLOCKED)되면 로그인 화면으로 보내고 이 안내를 보여 준다.">차단됨 안내</button>
+      <button class="chip" data-group="screen" data-value="force-change" data-desc="임시 비밀번호로 로그인한 직후. 바꾸기 전에는 다른 화면으로 갈 수 없다. 현재 비밀번호는 묻지 않는다.">비밀번호 강제 변경</button>
+      <button class="chip" data-group="screen" data-value="chat-new" data-desc="모바일 앱을 종료했다가 다시 열면 빈 새 세션으로 시작한다. 입력이 비어 있으면 보내기 버튼 자리에 녹음 버튼이 나온다.">채팅: 새 세션</button>
+      <button class="chip" data-group="screen" data-value="chat-streaming" data-desc="답변이 스트리밍되는 동안 보내기·녹음 버튼 자리에 중지 버튼이 나온다. 새 세션은 답변이 끝나면 목록 맨 위에 생긴다.">답변 스트리밍 중</button>
+      <button class="chip" data-group="screen" data-value="chat-stopped" data-desc="지난 세션을 연 모습. 중지한 답변은 받은 부분까지 '중단됨'으로 남고, 이어서 질문할 수 있다. 입력칸에 글자가 있으면 녹음 버튼 대신 보내기 버튼이 나온다.">중단된 답변</button>
+      <button class="chip" data-group="screen" data-value="chat-error" data-desc="답변을 받기 전에 서버 오류가 난 경우. 답변 일부를 받은 뒤 오류가 나면 받은 부분이 '중단됨'으로 남는다.">서버 오류</button>
+      <button class="chip" data-group="screen" data-value="session-delete" data-desc="메뉴 버튼으로 세션 목록을 연다. 삭제 버튼을 누르면 확인을 받는다. 목록을 끝까지 내리면 다음 세션을 이어서 불러온다.">세션 목록과 삭제</button>
+      <button class="chip" data-group="screen" data-value="settings" data-desc="세션 목록 아래의 설정에서 비밀번호를 바꾼다.">설정: 비밀번호 변경</button>
+      <button class="chip" data-group="screen" data-value="voice-recording" data-desc="녹음 버튼을 탭하면 녹음을 시작한다. 지난 시간과 최대 길이(2:00)를 보여 준다. 보내기 버튼을 탭하면 끝내고 바로 보내고, 취소하면 보내지 않고 버린다.">음성: 녹음 중</button>
+      <button class="chip" data-group="screen" data-value="voice-processing" data-desc="녹음을 보낸 뒤 질문 텍스트가 오기 전까지. 서버가 다른 녹음을 처리 중이면 차례를 기다리는 동안에도 이 모습이다. 텍스트가 오면 질문으로 바뀌고 답변이 이어진다.">음성: 처리 중</button>
+      <button class="chip" data-group="screen" data-value="voice-auto-stop" data-desc="녹음이 2분이 되면 자동으로 끝내고 보낸다. 처리 중 모습에 자동으로 끝났다는 안내를 더한다.">음성: 2분 자동 종료</button>
+      <button class="chip" data-group="screen" data-value="voice-answer" data-desc="보정된 텍스트가 질문으로 표시되고 수정 단계 없이 답변이 이어진다. 직접 입력한 질문과 구분하지 않는다.">음성: 질문과 답변</button>
+      <button class="chip" data-group="screen" data-value="voice-error" data-desc="(제안) 소리가 없거나 인식 결과가 비어 있는 경우. 규격(openapi.yaml)의 message를 그대로 보여 준다.">음성: 인식 실패</button>
+    </div>
+  </div>
+  <div class="tools__row">
+    <span class="tools__name">테마</span>
+    <div class="tools__group">
+      <button class="chip" data-group="theme" data-value="light">라이트</button>
+      <button class="chip" data-group="theme" data-value="dark">다크</button>
+    </div>
+  </div>
+  <p class="tools__desc" id="screen-desc"></p>
+</header>
+
+<main class="stage">
+  <div class="frame">
+    <div class="statusbar" aria-hidden="true"><span>9:41</span><span>●●● ▮</span></div>
+    <div class="screen">
+
+    <!-- ===== 로그인, 차단됨 안내 ===== -->
+    <section class="auth" data-for="login login-blocked">
+      <form class="auth__card" onsubmit="return false">
+        <h1 class="auth__brand">Iris</h1>
+        <div class="flash" role="alert" data-for="login-blocked">
+          <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+          <p>차단된 계정입니다. 관리자에게 문의해 주세요.</p>
+        </div>
+        <label class="field">
+          <span class="field__label">아이디</span>
+          <input class="input" type="text" autocomplete="username" value="">
+        </label>
+        <label class="field">
+          <span class="field__label">비밀번호</span>
+          <input class="input" type="password" autocomplete="current-password">
+        </label>
+        <button class="btn btn--primary btn--block" type="button" data-goto="chat-new">로그인</button>
+        <p class="auth__note">계정이 없으면 관리자에게 요청해 주세요.</p>
+      </form>
+    </section>
+
+    <!-- ===== 비밀번호 강제 변경 (임시 비밀번호로 로그인한 직후) ===== -->
+    <section class="auth" data-for="force-change">
+      <form class="auth__card" onsubmit="return false">
+        <h1 class="auth__title">비밀번호 변경</h1>
+        <p class="auth__desc">임시 비밀번호로 로그인했습니다. 계속하려면 새 비밀번호로 바꿔 주세요.</p>
+        <label class="field">
+          <span class="field__label">새 비밀번호</span>
+          <input class="input" type="password" autocomplete="new-password" aria-describedby="force-new-hint">
+          <span class="field__hint" id="force-new-hint">8자 이상</span>
+        </label>
+        <label class="field">
+          <span class="field__label">새 비밀번호 확인</span>
+          <input class="input" type="password" autocomplete="new-password">
+        </label>
+        <button class="btn btn--primary btn--block" type="button" data-goto="chat-new">변경하고 계속하기</button>
+      </form>
+    </section>
+
+    <!-- ===== 채팅 앱 ===== -->
+    <div class="app" data-for="chat-new chat-streaming chat-stopped chat-error session-delete settings voice-recording voice-processing voice-auto-stop voice-answer voice-error">
+      <nav class="sidebar" aria-label="세션 목록">
+        <div class="sidebar__head">
+          <h1 class="sidebar__brand">Iris</h1>
+          <button class="btn btn--invisible btn--icon" type="button" aria-label="세션 목록 닫기" data-action="drawer-close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+        </div>
+        <h2 class="sidebar__heading">세션</h2>
+        <ul class="sessions">
+          <li class="session"><a class="session__link" href="#" data-goto="chat-stopped">다음 주 일정 정리해 줘</a><button class="btn btn--invisible btn--icon" type="button" aria-label="'다음 주 일정 정리해 줘' 세션 삭제" data-goto="session-delete"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button></li>
+          <li class="session"><a class="session__link" href="#" data-goto="chat-stopped" data-current-for="chat-stopped">옵시디언에 저장한 독서 메모 찾아 줘</a><button class="btn btn--invisible btn--icon" type="button" aria-label="'옵시디언에 저장한 독서 메모 찾아 줘' 세션 삭제" data-goto="session-delete"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button></li>
+          <li class="session"><a class="session__link" href="#" data-goto="chat-stopped">여행 준비물 체크리스트 만들어 줘</a><button class="btn btn--invisible btn--icon" type="button" aria-label="'여행 준비물 체크리스트 만들어 줘' 세션 삭제" data-goto="session-delete"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button></li>
+          <li class="session"><a class="session__link" href="#" data-goto="chat-stopped">프로젝트 회고 초안 작성</a><button class="btn btn--invisible btn--icon" type="button" aria-label="'프로젝트 회고 초안 작성' 세션 삭제" data-goto="session-delete"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button></li>
+          <li class="session"><a class="session__link" href="#" data-goto="chat-stopped">파이썬 비동기 코드에서 예외가 사라지는 이유</a><button class="btn btn--invisible btn--icon" type="button" aria-label="'파이썬 비동기 코드에서 예외가 사라지는 이유' 세션 삭제" data-goto="session-delete"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button></li>
+          <li class="session"><a class="session__link" href="#" data-goto="chat-stopped">지난달 지출 내역 정리하는 방법</a><button class="btn btn--invisible btn--icon" type="button" aria-label="'지난달 지출 내역 정리하는 방법' 세션 삭제" data-goto="session-delete"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button></li>
+          <li class="session"><a class="session__link" href="#" data-goto="chat-stopped">회의록 요약 형식 추천</a><button class="btn btn--invisible btn--icon" type="button" aria-label="'회의록 요약 형식 추천' 세션 삭제" data-goto="session-delete"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button></li>
+          <li class="session"><a class="session__link" href="#" data-goto="chat-stopped">주말에 읽을 만한 기술 블로그</a><button class="btn btn--invisible btn--icon" type="button" aria-label="'주말에 읽을 만한 기술 블로그' 세션 삭제" data-goto="session-delete"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button></li>
+          <li class="session"><a class="session__link" href="#" data-goto="chat-stopped">이메일 답장 문구 다듬어 줘</a><button class="btn btn--invisible btn--icon" type="button" aria-label="'이메일 답장 문구 다듬어 줘' 세션 삭제" data-goto="session-delete"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button></li>
+          <li class="session"><a class="session__link" href="#" data-goto="chat-stopped">운동 루틴 짜 줘</a><button class="btn btn--invisible btn--icon" type="button" aria-label="'운동 루틴 짜 줘' 세션 삭제" data-goto="session-delete"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button></li>
+          <li class="sessions__more" aria-live="polite">이전 세션을 불러오는 중…</li>
+        </ul>
+        <div class="sidebar__foot">
+          <span class="sidebar__user">jhpark</span>
+          <button class="btn btn--invisible" type="button" data-goto="settings"><svg class="icon" aria-hidden="true"><use href="#i-gear"/></svg>설정</button>
+        </div>
+      </nav>
+      <div class="drawer-backdrop" data-action="drawer-close"></div>
+
+      <div class="main">
+        <div class="topbar">
+          <button class="btn btn--invisible btn--icon" type="button" aria-label="세션 목록 열기" data-action="drawer-open"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg></button>
+          <h2 class="topbar__title" data-for="chat-new chat-error session-delete voice-recording voice-processing voice-auto-stop voice-answer voice-error chat-streaming">새 세션</h2>
+          <h2 class="topbar__title" data-for="chat-stopped">옵시디언에 저장한 독서 메모 찾아 줘</h2>
+          <h2 class="topbar__title" data-for="settings">설정</h2>
+        </div>
+
+        <!-- 새 세션: 빈 화면 -->
+        <div class="empty" data-for="chat-new session-delete voice-recording">
+          <p class="empty__title">Iris에게 질문하세요</p>
+          <p class="empty__desc">입력하거나 녹음 버튼을 눌러 말해 보세요. 지난 대화는 세션 목록에서 볼 수 있습니다.</p>
+        </div>
+
+        <!-- 답변 스트리밍 중 -->
+        <div class="thread" data-for="chat-streaming">
+          <div class="thread__inner">
+            <p class="question">주간 보고서 초안을 써 줘. 이번 주에는 로그인 API와 채팅 저장 기능을 끝냈어.</p>
+            <div class="answer">
+              <p>이번 주 주간 보고서 초안입니다.</p>
+              <p>완료한 일
+- 로그인 API 구현
+- 채팅 기록 저장 기능 구현</p>
+              <p>다음 주 계획
+- 모바일 앱 샘플 화면 작성과<span class="caret" aria-hidden="true"></span></p>
+              <div class="answer__meta" aria-live="polite">답변을 받는 중…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 지난 세션, 중단된 답변 -->
+        <div class="thread" data-for="chat-stopped">
+          <div class="thread__inner">
+            <p class="question">옵시디언에 저장한 독서 메모 찾아 줘</p>
+            <div class="answer">
+              <p>'독서' 태그가 붙은 메모 3개를 찾았습니다.
+1. 역사책 1~4장 요약 (11월 2일)
+2. 습관에 관한 책에서 인상 깊은 문장 (11월 9일)
+3. 읽을 책 목록 (11월 15일)</p>
+            </div>
+            <p class="question">첫 번째 메모 내용을 자세히 정리해 줘</p>
+            <div class="answer">
+              <p>'역사책 1~4장 요약' 메모를 장별로 정리하면 다음과 같습니다.</p>
+              <p>1장은 사람들이 언어를 쓰기 시작하면서 큰 무리를 이룰 수 있었다는 내용입니다. 2장은</p>
+              <div class="answer__meta"><span class="label">중단됨</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 서버 오류 (답변을 받기 전) -->
+        <div class="thread" data-for="chat-error">
+          <div class="thread__inner">
+            <p class="question">오늘 회의록을 요약해 줘</p>
+            <div class="flash" role="alert">
+              <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+              <p>서버 오류가 발생했습니다. 잠시 후 다시 질문해 주세요.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 음성: 처리 중, 2분 자동 종료 -->
+        <div class="thread" data-for="voice-processing voice-auto-stop">
+          <div class="thread__inner">
+            <div class="flash flash--info" role="status" data-for="voice-auto-stop">
+              <svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>
+              <p>녹음이 2분이 되어 자동으로 끝내고 보냈습니다.</p>
+            </div>
+            <p class="question question--pending" aria-live="polite"><svg class="icon" aria-hidden="true"><use href="#i-dots"/></svg>음성을 질문으로 바꾸는 중…</p>
+          </div>
+        </div>
+
+        <!-- 음성: 보정된 질문과 답변 -->
+        <div class="thread" data-for="voice-answer">
+          <div class="thread__inner">
+            <p class="question">내일 오전 회의 전에 확인할 일을 정리해 줘.</p>
+            <div class="answer">
+              <p>내일 오전 회의 전에 확인할 일입니다.
+1. 지난 회의록의 남은 일<span class="caret" aria-hidden="true"></span></p>
+              <div class="answer__meta" aria-live="polite">답변을 받는 중…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 음성: 인식 실패 -->
+        <div class="thread" data-for="voice-error">
+          <div class="thread__inner">
+            <div class="flash" role="alert">
+              <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+              <p>음성을 인식하지 못했습니다. 다시 녹음해 주세요.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 설정: 비밀번호 변경 -->
+        <div class="page" data-for="settings">
+          <form class="panel" onsubmit="return false">
+            <h3 class="panel__title">비밀번호 변경</h3>
+            <label class="field">
+              <span class="field__label">현재 비밀번호</span>
+              <input class="input" type="password" autocomplete="current-password">
+            </label>
+            <label class="field">
+              <span class="field__label">새 비밀번호</span>
+              <input class="input" type="password" autocomplete="new-password" aria-describedby="settings-new-hint">
+              <span class="field__hint" id="settings-new-hint">8자 이상</span>
+            </label>
+            <label class="field">
+              <span class="field__label">새 비밀번호 확인</span>
+              <input class="input" type="password" autocomplete="new-password">
+            </label>
+            <button class="btn btn--primary btn--block" type="button">비밀번호 변경</button>
+          </form>
+        </div>
+
+        <!-- 질문 입력 -->
+        <div class="composer" data-for="chat-new chat-streaming chat-stopped chat-error session-delete voice-processing voice-auto-stop voice-answer voice-error">
+          <div class="composer__box">
+            <textarea class="composer__input" rows="1" placeholder="질문을 입력하세요" aria-label="질문" data-for="chat-new chat-streaming chat-error session-delete voice-answer voice-error"></textarea>
+            <textarea class="composer__input" rows="1" aria-label="질문" data-for="chat-stopped">2장도 정리해 줘</textarea>
+            <textarea class="composer__input" rows="1" placeholder="질문을 입력하세요" aria-label="질문" data-for="voice-processing voice-auto-stop" disabled></textarea>
+            <button class="btn btn--primary btn--icon" type="button" aria-label="녹음 시작" data-for="chat-new chat-error session-delete voice-error" data-goto="voice-recording"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></button>
+            <button class="btn btn--primary btn--icon" type="button" aria-label="녹음 시작" data-for="voice-processing voice-auto-stop" disabled><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></button>
+            <button class="btn btn--primary btn--icon" type="button" aria-label="질문 보내기" data-for="chat-stopped"><svg class="icon" aria-hidden="true"><use href="#i-send"/></svg></button>
+            <button class="btn" type="button" data-for="chat-streaming voice-answer"><svg class="icon" aria-hidden="true"><use href="#i-stop"/></svg>중지</button>
+          </div>
+        </div>
+
+        <!-- 녹음 중 -->
+        <div class="composer" data-for="voice-recording">
+          <div class="recorder">
+            <div class="recorder__row">
+              <span class="recorder__status" aria-live="polite"><span class="recorder__dot" aria-hidden="true"></span>녹음 중</span>
+              <span class="recorder__time" aria-label="2분 중 42초">0:42 / 2:00</span>
+            </div>
+            <div class="recorder__track" aria-hidden="true"><div class="recorder__fill" style="width: 35%"></div></div>
+            <div class="recorder__row">
+              <button class="btn" type="button" data-goto="chat-new">취소</button>
+              <span style="flex: 1"></span>
+              <button class="btn btn--primary" type="button" data-goto="voice-processing"><svg class="icon" aria-hidden="true"><use href="#i-send"/></svg>보내기</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 세션 삭제 확인 -->
+      <div class="backdrop" data-for="session-delete">
+        <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+          <h2 class="dialog__title" id="delete-title">세션을 삭제할까요?</h2>
+          <p class="dialog__body">'여행 준비물 체크리스트 만들어 줘' 세션이 목록에서 사라지고 다시 볼 수 없습니다.</p>
+          <div class="dialog__actions">
+            <button class="btn" type="button" data-goto="chat-new">취소</button>
+            <button class="btn btn--danger" type="button" data-goto="chat-new">삭제</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    </div>
+    <div class="homebar" aria-hidden="true"></div>
+  </div>
+</main>
+
+<script>
+  const SCREENS = ['login', 'login-blocked', 'force-change', 'chat-new', 'chat-streaming',
+    'chat-stopped', 'chat-error', 'session-delete', 'settings',
+    'voice-recording', 'voice-processing', 'voice-auto-stop', 'voice-answer', 'voice-error'];
+
+  function includes(list, name) {
+    return list.split(' ').includes(name);
+  }
+
+  function setPressed(group, value) {
+    document.querySelectorAll(`[data-group="${group}"]`).forEach((chip) => {
+      chip.setAttribute('aria-pressed', String(chip.dataset.value === value));
+    });
+  }
+
+  function showScreen(name) {
+    document.querySelectorAll('[data-for]').forEach((el) => {
+      el.hidden = !includes(el.dataset.for, name);
+    });
+    document.querySelectorAll('[data-current-for]').forEach((el) => {
+      if (includes(el.dataset.currentFor, name)) el.setAttribute('aria-current', 'page');
+      else el.removeAttribute('aria-current');
+    });
+    document.querySelector('.app').classList.toggle('is-drawer-open', name === 'session-delete');
+    const chip = document.querySelector(`[data-group="screen"][data-value="${name}"]`);
+    document.getElementById('screen-desc').textContent = chip.dataset.desc;
+    setPressed('screen', name);
+    history.replaceState(null, '', `#${name}`);
+  }
+
+  const toolActions = {
+    screen: showScreen,
+    theme: (value) => { document.documentElement.dataset.colorMode = value; setPressed('theme', value); },
+  };
+
+  function onClick(event) {
+    const chip = event.target.closest('[data-group]');
+    if (chip) return toolActions[chip.dataset.group](chip.dataset.value);
+    const goto = event.target.closest('[data-goto]');
+    if (goto) { event.preventDefault(); return showScreen(goto.dataset.goto); }
+    const action = event.target.closest('[data-action]');
+    if (action) document.querySelector('.app').classList.toggle('is-drawer-open', action.dataset.action === 'drawer-open');
+    if (event.target.closest('a[href="#"]')) event.preventDefault();
+  }
+
+  document.addEventListener('click', onClick);
+  const initial = location.hash.slice(1);
+  showScreen(SCREENS.includes(initial) ? initial : 'login');
+  toolActions.theme('light');
+</script>
+</body>
+</html>
