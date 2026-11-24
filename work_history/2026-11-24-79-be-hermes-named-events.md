@@ -4,9 +4,9 @@
 |---|---|
 | 이슈 | #79 (https://github.com/timonPark/iris/issues/79) |
 | 브랜치 | 2026-11-24-79-be-hermes-named-events |
-| 상태 | 검증 대기 |
+| 상태 | 완료 |
 | 시작일자 | 2026-11-24 |
-| 종료일자 | |
+| 종료일자 | 2026-11-24 |
 
 ## 작업 내용
 
@@ -46,4 +46,4 @@ Hermes가 도구를 쓰는 질문에서 `event: approval.request`(터미널 명�
 
 ### 남은 일
 - 승인 요청 처리 정책(자동 허용/거절, Hermes 설정)은 이슈 범위 밖이라 별도로 정해야 한다(Iris 사용자가 시킨 터미널 명령을 자동 허용해도 되는지는 보안 결정).
-- 사용자 검증 후 "#79 머지해". 머지 뒤 서버를 다시 시작해야 새 코드가 적용된다(`launchctl kickstart -k gui/$(id -u)/com.iris.backend`).
+- 없음. PR #80, 2026-11-24 사용자 지시("#79 머지해")로 머지. 머지 뒤 서버를 다시 시작했다(`launchctl kickstart -k gui/$(id -u)/com.iris.backend`).
