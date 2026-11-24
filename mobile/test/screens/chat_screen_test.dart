@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,6 +46,73 @@ Future<void> openDrawer(WidgetTester tester) async {
   await tester.tap(find.byTooltip('세션 목록 열기'));
   await tester.pumpAndSettle();
 }
+
+/// 서랍을 열고 [새 세션]을 누른다.
+Future<void> tapNewSession(WidgetTester tester) async {
+  await openDrawer(tester);
+  await tester.tap(inDrawer('새 세션'));
+  await tester.pumpAndSettle();
+}
+
+Finder inDrawer(String text) =>
+    find.descendant(of: find.byType(Drawer), matching: find.text(text));
+
+/// 서랍의 세션 제목(위에서부터).
+List<String?> drawerTitles(WidgetTester tester) => tester
+    .widgetList<Text>(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.byWidgetPredicate(
+          (Widget w) => w is Text && w.maxLines == 1,
+        ),
+      ),
+    )
+    .map((Text t) => t.data)
+    .toList();
+
+const String pastQuestionsPath = '/api/v1/sessions/s0/questions';
+
+/// 목록에 "지난 세션" 하나(옛 질문, 옛 답).
+Map<String, FakeHandler> pastSession() => <String, FakeHandler>{
+  '/api/v1/sessions': (_) => sessionPage(<String>['지난 세션']),
+  pastQuestionsPath: (_) =>
+      questionPage(<(String, String, String)>[('옛 질문', '옛 답', 'completed')]),
+};
+
+Future<void> openPastSession(WidgetTester tester) async {
+  await openDrawer(tester);
+  await tester.tap(find.text('지난 세션'));
+  await tester.pumpAndSettle();
+  expect(find.text('옛 답'), findsOneWidget);
+}
+
+/// 위쪽 막대가 "새 세션"이고 대화 없이 안내만 보인다.
+void expectBlankNewSession() {
+  expect(
+    find.descendant(of: find.byType(AppBar), matching: find.text('새 세션')),
+    findsOneWidget,
+  );
+  expect(find.text('Iris에게 질문하세요'), findsOneWidget);
+  expect(find.text('옛 답'), findsNothing);
+}
+
+/// 첫 질문은 [sse]로 흘리고, 그다음 질문은 '다음 답'으로 바로 끝난다.
+FakeStreamHandler firstThenDone(ControlledSse sse) {
+  int sends = 0;
+  return (http.Request r) => sends++ == 0
+      ? sse.handler(r)
+      : http.StreamedResponse(
+          Stream<List<int>>.value(utf8.encode(sseDone('다음 답'))),
+          200,
+        );
+}
+
+/// 지난 세션 열람 응답을 [page]가 끝날 때까지 미룬다.
+Map<String, FakeStreamHandler> delayed(Completer<List<int>> page) =>
+    <String, FakeStreamHandler>{
+      pastQuestionsPath: (_) =>
+          http.StreamedResponse(Stream<List<int>>.fromFuture(page.future), 200),
+    };
 
 String sseDone(String answer) => <String>[
   sseEvent('session', <String, Object>{'id': 'new1'}),
@@ -334,7 +402,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Iris에게 질문하세요'), findsOneWidget);
-    expect(find.text('새 세션'), findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(AppBar), matching: find.text('새 세션')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('삭제에 실패하면 대화상자에 오류를 보이고 목록에 둔다', (WidgetTester tester) async {
@@ -357,5 +428,114 @@ void main() {
     await tester.tap(find.widgetWithText(OutlinedButton, '취소'));
     await tester.pumpAndSettle();
     expect(find.text('여행 준비물'), findsOneWidget);
+  });
+
+  group('새 세션 버튼', () {
+    testWidgets('지난 세션을 연 뒤 누르면 빈 새 세션이 되고 다음 질문은 새 세션으로 저장된다', (
+      WidgetTester tester,
+    ) async {
+      final FakeApi api = FakeApi(<String, FakeHandler>{
+        ...pastSession(),
+        sendPath: (_) => sseReply(<String>[sseDone('새 답')]),
+      });
+      await startChat(tester, api);
+      await openPastSession(tester);
+
+      await tapNewSession(tester);
+
+      expect(find.byType(Drawer), findsNothing);
+      expectBlankNewSession();
+      await ask(tester, '새 질문');
+      await tester.pumpAndSettle();
+      expect(requestJson(api.requestsTo(sendPath).single), <String, String>{
+        'text': '새 질문',
+      });
+      await openDrawer(tester);
+      expect(drawerTitles(tester), <String>['새 질문', '지난 세션']);
+    });
+
+    testWidgets('이미 빈 새 세션이면 아무 일도 없다(쓰던 입력도 그대로)', (
+      WidgetTester tester,
+    ) async {
+      await startChat(tester, FakeApi(<String, FakeHandler>{}));
+      await tester.enterText(find.byType(TextField), '쓰는 중');
+
+      await tapNewSession(tester);
+
+      expectBlankNewSession();
+      expect(find.text('쓰는 중'), findsOneWidget);
+    });
+
+    testWidgets('답변을 받는 중에 누르고 바로 질문해도 두 세션이 따로 저장된다', (
+      WidgetTester tester,
+    ) async {
+      final ControlledSse sse = ControlledSse();
+      final FakeApi api = FakeApi(
+        <String, FakeHandler>{},
+        streams: <String, FakeStreamHandler>{sendPath: firstThenDone(sse)},
+      );
+      await startChat(tester, api);
+      await ask(tester, '긴 질문');
+      sse.send('session', <String, Object>{'id': 'long1'});
+      sse.send('delta', <String, Object>{'text': '받는 중인 조각'});
+      await tester.pump();
+
+      await tapNewSession(tester);
+      expectBlankNewSession();
+      expect(find.textContaining('받는 중인 조각'), findsNothing);
+      await ask(tester, '다음 질문');
+      await tester.pumpAndSettle();
+      sse.send('done', <String, Object>{'answerId': 'a1'});
+      await sse.cut();
+      await tester.pumpAndSettle();
+
+      expect(requestJson(api.requestsTo(sendPath).last), <String, String>{
+        'text': '다음 질문',
+      });
+      expect(find.text('다음 답'), findsOneWidget);
+      await openDrawer(tester);
+      expect(drawerTitles(tester), <String>['긴 질문', '다음 질문']);
+    });
+
+    testWidgets('지난 세션을 보다 설정으로 간 뒤 누르면 채팅의 빈 새 세션으로', (
+      WidgetTester tester,
+    ) async {
+      await startChat(tester, FakeApi(pastSession()));
+      await openPastSession(tester);
+      await openDrawer(tester);
+      await tester.tap(find.text('설정'));
+      await tester.pumpAndSettle();
+
+      // 설정의 위쪽 막대는 뒤로 가기라 서랍은 화면 왼쪽 끝에서 밀어 연다.
+      await tester.dragFrom(const Offset(1, 300), const Offset(300, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(inDrawer('새 세션'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('비밀번호 변경'), findsNothing);
+      expectBlankNewSession();
+    });
+
+    testWidgets('지난 세션을 불러오는 중에 누르면 늦게 온 지난 대화가 덮지 않는다', (
+      WidgetTester tester,
+    ) async {
+      final Completer<List<int>> page = Completer<List<int>>();
+      await startChat(tester, FakeApi(pastSession(), streams: delayed(page)));
+      await openDrawer(tester);
+      await tester.tap(find.text('지난 세션'));
+      // 불러오는 중 표시가 계속 움직여 pumpAndSettle 대신 시간을 정해 흘린다.
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(find.byTooltip('세션 목록 열기'));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(inDrawer('새 세션'));
+      await tester.pumpAndSettle();
+
+      page.complete(
+        pastSession()[pastQuestionsPath]!(http.Request('GET', Uri())).bodyBytes,
+      );
+      await tester.pumpAndSettle();
+
+      expectBlankNewSession();
+    });
   });
 }

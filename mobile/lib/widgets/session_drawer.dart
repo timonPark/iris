@@ -4,6 +4,7 @@ import '../api/api_models.dart';
 import '../chat/sessions_controller.dart';
 import '../theme/app_theme.dart';
 import '../theme/primer_tokens.dart';
+import 'form_parts.dart';
 
 /// 세션 목록 서랍: 위에 "Iris"와 닫기, 가운데 세션 목록(끝이 보이면 이어 불러오기), 아래에 아이디와 설정.
 class SessionDrawer extends StatelessWidget {
@@ -13,6 +14,7 @@ class SessionDrawer extends StatelessWidget {
     required this.currentId,
     required this.loginId,
     required this.onOpen,
+    required this.onNew,
     required this.onDelete,
     required this.onSettings,
   });
@@ -23,6 +25,9 @@ class SessionDrawer extends StatelessWidget {
   final String? currentId;
   final String loginId;
   final ValueChanged<Session> onOpen;
+
+  /// [새 세션] 버튼(`ssot/GLOSSARY.md` "세션").
+  final VoidCallback onNew;
   final ValueChanged<Session> onDelete;
   final VoidCallback onSettings;
 
@@ -39,6 +44,7 @@ class SessionDrawer extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             const _Head(),
+            _NewSession(onNew: onNew),
             const _Heading(),
             Expanded(child: _list()),
             _Foot(loginId: loginId, onSettings: onSettings),
@@ -103,6 +109,28 @@ class _Head extends StatelessWidget {
             icon: const Icon(Icons.close),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// "세션" 제목 위의 넓은 [+ 새 세션](사용자 웹 #73과 같은 모양).
+class _NewSession extends StatelessWidget {
+  const _NewSession({required this.onNew});
+
+  final VoidCallback onNew;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: PrimerSize.stackPaddingNormal,
+      ),
+      child: OutlinedButton.icon(
+        onPressed: onNew,
+        style: defaultButtonStyle(context, primerColorsOf(context)),
+        icon: const Icon(Icons.add),
+        label: const Text('새 세션'),
       ),
     );
   }
