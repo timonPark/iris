@@ -73,5 +73,8 @@
   - 넘어감: `new URL(request.url)` 상대 경로. `Request.url`은 항상 절대 주소이고 서버 주소에 하위 경로를 쓰지 않는다.
   - 넘어감: `letter-spacing: var(--base-size-2)`. 샘플(#4)에서 정한 그대로다.
 
+### PR
+- https://github.com/timonPark/iris/pull/71
+
 ### 남은 일
 - 원격 서버에서의 계정 관리 확인(사용자).
