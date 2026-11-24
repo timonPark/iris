@@ -1,6 +1,6 @@
 import { useEffect, useRef, type JSX, type MouseEvent, type RefObject } from 'react'
 import { Button, IconButton } from '@primer/react'
-import { GearIcon, TrashIcon, XIcon } from '@primer/octicons-react'
+import { GearIcon, PlusIcon, TrashIcon, XIcon } from '@primer/octicons-react'
 import type { Sessions } from '../chat/useSessions'
 import type { Session } from '../chat/types'
 
@@ -10,6 +10,8 @@ export interface SidebarProps {
   currentId: string | null
   loginId: string
   onOpen: (session: Session) => void
+  /** [새 세션] 버튼(`ssot/GLOSSARY.md` "세션"). */
+  onNew: () => void
   onDelete: (session: Session) => void
   onSettings: () => void
   onClose: () => void
@@ -20,10 +22,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
   const { sessions } = props
   return (
     <nav className="sidebar" aria-label="세션 목록">
-      <div className="sidebar__head">
-        <h1 className="sidebar__brand">Iris</h1>
-        <IconButton className="sidebar__close" icon={XIcon} variant="invisible" aria-label="세션 목록 닫기" unsafeDisableTooltip onClick={props.onClose} />
-      </div>
+      <SidebarHead onNew={props.onNew} onClose={props.onClose} />
       <h2 className="sidebar__heading">세션</h2>
       <ul className="sessions">
         {sessions.items.map((s: Session) => (
@@ -42,6 +41,21 @@ export function Sidebar(props: SidebarProps): JSX.Element {
         <Button variant="invisible" leadingVisual={GearIcon} onClick={props.onSettings}>설정</Button>
       </div>
     </nav>
+  )
+}
+
+/** 브랜드, 좁은 화면의 서랍 닫기, [새 세션] 버튼. */
+function SidebarHead({ onNew, onClose }: Pick<SidebarProps, 'onNew' | 'onClose'>): JSX.Element {
+  return (
+    <>
+      <div className="sidebar__head">
+        <h1 className="sidebar__brand">Iris</h1>
+        <IconButton className="sidebar__close" icon={XIcon} variant="invisible" aria-label="세션 목록 닫기" unsafeDisableTooltip onClick={onClose} />
+      </div>
+      <div className="sidebar__new">
+        <Button block leadingVisual={PlusIcon} onClick={onNew}>새 세션</Button>
+      </div>
+    </>
   )
 }
 
