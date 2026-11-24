@@ -39,7 +39,47 @@ body .field-input { font: var(--text-body-shorthand-large); }
 .page { flex: 1; overflow: auto; padding: var(--stack-padding-spacious) var(--stack-padding-normal); }
 .page__inner { max-width: var(--breakpoint-large); margin: 0 auto; display: flex; flex-direction: column; gap: var(--stack-gap-normal); }
 .page__title { margin: 0; font: var(--text-title-shorthand-medium); }
-.page__note { margin: 0; color: var(--fgColor-muted); }
+.page__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; }
+
+/* ---------- 사용자 계정 목록 ---------- */
+.card { border: var(--borderWidth-thin) solid var(--borderColor-default); border-radius: var(--borderRadius-medium); overflow: hidden; }
+.table { width: 100%; border-collapse: collapse; }
+.table th {
+  padding: var(--space-sm) var(--space-md); text-align: left;
+  background: var(--bgColor-muted); color: var(--fgColor-default);
+  font: var(--text-body-shorthand-small); font-weight: var(--base-text-weight-semibold);
+  border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+.table td, .table tbody th { padding: var(--space-sm) var(--space-md); border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted); vertical-align: middle; }
+.table tbody th { background: transparent; text-align: left; font: var(--text-body-shorthand-medium); }
+.table tr:last-child td, .table tr:last-child th { border-bottom: 0; }
+.table tbody .table__id { font-weight: var(--base-text-weight-semibold); }
+.table__muted { color: var(--fgColor-muted); }
+.table__actions { display: flex; justify-content: flex-end; gap: var(--space-xs); }
+.table th:last-child { text-align: right; }
+.list-foot { display: flex; justify-content: center; }
+.empty {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-sm);
+  padding: var(--stack-padding-spacious); text-align: center;
+}
+.empty__title { margin: 0; font: var(--text-title-shorthand-small); }
+.empty__desc { margin: 0; color: var(--fgColor-muted); }
+
+/* ---------- 대화상자 ---------- */
+.dialog__form, .dialog__stack { display: flex; flex-direction: column; gap: var(--stack-gap-normal); }
+.dialog__body { margin: 0; }
+.dialog__hint { font: var(--text-body-shorthand-small); color: var(--fgColor-muted); }
+
+/* 임시 비밀번호: 한 번만 보여 준다. 헷갈리는 글자를 뺀 12자라 고정폭 글꼴로 크게 */
+.secret { display: flex; flex-direction: column; gap: var(--space-xs); }
+.secret__label { font: var(--text-body-shorthand-small); color: var(--fgColor-muted); }
+.secret__row {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md); border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium); background: var(--bgColor-muted);
+}
+.secret__value { font-family: var(--fontStack-monospace); font-size: var(--text-title-size-medium); letter-spacing: var(--base-size-2); user-select: all; }
+.secret__id { font-weight: var(--base-text-weight-semibold); }
 
 /* ---------- 좁은 화면 ----------
    미디어 쿼리 조건에는 CSS 변수를 쓸 수 없어서 값을 직접 쓴다. 48rem = var(--breakpoint-medium) */
@@ -47,4 +87,12 @@ body .field-input { font: var(--text-body-shorthand-large); }
   .auth__brand { font: var(--text-title-shorthand-medium); }
   .page__title { font: var(--text-title-shorthand-small); }
   .header__user { display: none; }
+  /* 표를 계정마다 한 장씩 쌓는다. 칸 이름은 data-label로 보여 준다(샘플 #4). */
+  .table thead { display: none; }
+  .table tr { display: flex; flex-direction: column; gap: var(--space-xs); padding: var(--space-md); border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted); }
+  .table tr:last-child { border-bottom: 0; }
+  .table td, .table tbody th { display: flex; justify-content: space-between; gap: var(--space-sm); padding: 0; border: 0; }
+  .table td[data-label]::before { content: attr(data-label); color: var(--fgColor-muted); font: var(--text-body-shorthand-small); }
+  .table__actions { justify-content: flex-start; padding-top: var(--space-xs); }
+  .secret__value { font-size: var(--text-title-size-small); letter-spacing: normal; }
 }

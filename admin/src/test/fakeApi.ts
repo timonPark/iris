@@ -11,6 +11,7 @@ export interface FakeReply {
 export interface SentRequest {
   method: string
   path: string
+  query: string
   authorization: string | null
   body: unknown
 }
@@ -26,6 +27,7 @@ async function record(request: Request): Promise<SentRequest> {
   return {
     method: request.method,
     path: url.pathname,
+    query: url.search,
     authorization: request.headers.get('Authorization'),
     body: text === '' ? null : JSON.parse(text),
   }
@@ -56,4 +58,28 @@ export function apiError(status: number, code: string, message: string): FakeRep
 
 export function loginOk(role: 'admin' | 'user', accessToken: string = 'tk'): FakeReply {
   return { status: 200, body: { accessToken, role, passwordChangeRequired: role === 'user' } }
+}
+
+export interface UserFixture {
+  id: string
+  loginId: string
+  status: 'active' | 'blocked'
+  passwordChangeRequired: boolean
+  createdAt: string
+}
+
+/** 관리자 API의 사용자 계정(`User`). */
+export function userOf(loginId: string, extra: Partial<UserFixture> = {}): UserFixture {
+  return {
+    id: `id-${loginId}`,
+    loginId,
+    status: 'active',
+    passwordChangeRequired: false,
+    createdAt: '2026-11-20T03:00:00Z',
+    ...extra,
+  }
+}
+
+export function userPage(items: UserFixture[], nextCursor?: string): FakeReply {
+  return { status: 200, body: nextCursor === undefined ? { items } : { items, nextCursor } }
 }

@@ -7,6 +7,8 @@ import type { StoredAuth } from './storage'
 export interface Login {
   error: string | null
   busy: boolean
+  /** 이 화면에서 로그인을 한 번이라도 시도했다. 그 뒤에는 들어올 때의 안내를 지운다. */
+  tried: boolean
   login: (loginId: string, password: string) => Promise<void>
 }
 
@@ -14,6 +16,7 @@ export interface Login {
 export function useLogin(client: ApiClient, onLoggedIn: (auth: StoredAuth) => void): Login {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<boolean>(false)
+  const [tried, setTried] = useState<boolean>(false)
   // Primer Button의 loading은 제출을 막지 않으므로(aria-disabled만) 응답 전 재제출을 여기서 막는다.
   const inFlight: RefObject<boolean> = useRef<boolean>(false)
 
@@ -22,6 +25,7 @@ export function useLogin(client: ApiClient, onLoggedIn: (auth: StoredAuth) => vo
     inFlight.current = true
     setBusy(true)
     setError(null)
+    setTried(true)
     const { data, error: apiError } = await safely(
       client.POST('/api/v1/auth/login', { body: { loginId, password } }),
     )
@@ -36,5 +40,5 @@ export function useLogin(client: ApiClient, onLoggedIn: (auth: StoredAuth) => vo
     }
   }
 
-  return { error, busy, login }
+  return { error, busy, tried, login }
 }

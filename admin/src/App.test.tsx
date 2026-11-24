@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import indexHtml from '../index.html?raw'
 import App from './App'
 import { loadAuth, saveAuth } from './auth/storage'
-import { fakeApi, loginOk, type FakeApi } from './test/fakeApi'
+import { apiError, fakeApi, loginOk, userPage, type FakeApi } from './test/fakeApi'
 
 async function login(user: UserEvent, loginId: string): Promise<void> {
   await user.type(screen.getByLabelText('아이디'), loginId)
@@ -52,6 +52,48 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Iris 관리자' })).toBeInTheDocument()
     expect(screen.getByText('admin')).toBeInTheDocument()
+  })
+})
+
+describe('App 인증 오류', () => {
+  afterEach((): void => {
+    sessionStorage.clear()
+  })
+
+  it('관리자 API가 토큰을 받지 않으면 로그인 상태를 지우고 로그인 화면에서 다시 로그인하라고 안내한다', async () => {
+    saveAuth({ accessToken: 'expired', loginId: 'admin' })
+    const api: FakeApi = fakeApi({
+      'GET /api/v1/admin/users': [apiError(401, 'UNAUTHORIZED', '다시 로그인해 주세요.')],
+    })
+    render(<App fetch={api.fetch} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('다시 로그인해 주세요.')
+    expect(screen.getByRole('button', { name: '로그인' })).toBeInTheDocument()
+    expect(loadAuth()).toBeNull()
+  })
+
+  it('관리자 API가 권한 없음(FORBIDDEN)이면 같은 방식으로 로그인 화면에 보낸다', async () => {
+    saveAuth({ accessToken: 'user-token', loginId: 'someone' })
+    const api: FakeApi = fakeApi({
+      'GET /api/v1/admin/users': [apiError(403, 'FORBIDDEN', '권한이 없습니다.')],
+    })
+    render(<App fetch={api.fetch} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('다시 로그인해 주세요.')
+    expect(loadAuth()).toBeNull()
+  })
+
+  it('관리자로 로그인하면 계정 목록을 받는다', async () => {
+    const api: FakeApi = fakeApi({
+      'POST /api/v1/auth/login': [loginOk('admin', 'admin-tk')],
+      'GET /api/v1/admin/users': [userPage([])],
+    })
+    render(<App fetch={api.fetch} />)
+
+    await login(userEvent.setup(), 'admin')
+
+    expect(await screen.findByText('등록한 사용자 계정이 없습니다')).toBeInTheDocument()
+    expect(api.sent[1].authorization).toBe('Bearer admin-tk')
   })
 })
 

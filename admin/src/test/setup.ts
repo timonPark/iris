@@ -2,6 +2,15 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
+// jsdom에는 ResizeObserver가 없다. Primer Dialog가 쓴다.
+if (!('ResizeObserver' in window)) {
+  ;(window as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+}
+
 afterEach((): void => {
   cleanup()
 })
