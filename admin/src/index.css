@@ -1,11 +1,50 @@
-/* 색, 간격, 글자는 Primer 토큰만 쓴다(ssot/PRIMER.md). */
+/* 색, 간격, 글자는 Primer 토큰만 쓴다(ssot/PRIMER.md). 화면 모양은 샘플 docs/samples/admin/index.html(#4)을 따른다. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
 body {
-  margin: 0;
   background-color: var(--bgColor-default);
   color: var(--fgColor-default);
   font: var(--text-body-shorthand-medium);
 }
+.root { height: 100%; display: flex; }
 
-.app {
-  padding: var(--stack-padding-spacious);
+/* 입력칸 글자는 16px(body-large). Primer TextInput은 넓은 화면에서 14px로 줄이므로 덮어쓴다(사용자 웹과 같음). */
+body .field-input { font: var(--text-body-shorthand-large); }
+
+/* 안내 상자: 아이콘과 문장을 한 줄에 */
+.form-flash { display: flex; align-items: flex-start; gap: var(--space-sm); }
+.form-flash svg { flex: none; margin-top: var(--space-xxs); }
+.form-flash p { margin: 0; }
+
+/* ---------- 로그인 ---------- */
+.auth {
+  flex: 1; display: flex; overflow: auto;
+  padding: var(--stack-padding-spacious) var(--stack-padding-normal);
+}
+/* margin: auto로 가운데 둔다. 화면이 카드보다 낮으면 위쪽부터 보이고 스크롤할 수 있다. */
+.auth__card { margin: auto; width: 100%; max-width: var(--overlay-width-small); display: flex; flex-direction: column; gap: var(--stack-gap-normal); }
+.auth__brand { margin: 0; text-align: center; font: var(--text-title-shorthand-large); }
+.auth__sub { margin: 0; text-align: center; color: var(--fgColor-muted); }
+
+/* ---------- 관리자 화면 틀 ---------- */
+.shell { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.header {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+  min-height: var(--control-large-size); padding: var(--stack-padding-condensed) var(--stack-padding-normal);
+  background: var(--bgColor-muted); border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+/* bgColor-muted 위에는 fgColor-default를 쓴다(ssot/PRIMER.md 색 짝. 샘플의 fgColor-muted보다 ssot가 우선). */
+.header__brand { margin: 0; font: var(--text-title-shorthand-small); }
+.header__user { color: var(--fgColor-default); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page { flex: 1; overflow: auto; padding: var(--stack-padding-spacious) var(--stack-padding-normal); }
+.page__inner { max-width: var(--breakpoint-large); margin: 0 auto; display: flex; flex-direction: column; gap: var(--stack-gap-normal); }
+.page__title { margin: 0; font: var(--text-title-shorthand-medium); }
+.page__note { margin: 0; color: var(--fgColor-muted); }
+
+/* ---------- 좁은 화면 ----------
+   미디어 쿼리 조건에는 CSS 변수를 쓸 수 없어서 값을 직접 쓴다. 48rem = var(--breakpoint-medium) */
+@media (max-width: 48rem) {
+  .auth__brand { font: var(--text-title-shorthand-medium); }
+  .page__title { font: var(--text-title-shorthand-small); }
+  .header__user { display: none; }
 }
