@@ -49,6 +49,9 @@
 ### 코드 리뷰
 - 코드 변경이 없어(work_history만) codex, agy 리뷰는 하지 않았다.
 
+### PR
+- https://github.com/timonPark/iris/pull/76
+
 ### 남은 일
 - Hermes가 가진 자료를 드라이브에 올리고 주소를 돌려주는 흐름 확인(후순위, #75).
 - 문서, 슬라이드 URL 모양 확인(#38, #39 시작 전).
