@@ -193,6 +193,10 @@ class ChatController extends ChangeNotifier {
     _restart(id: null, name: null, isLoading: false);
   }
 
+  /// [새 세션] 버튼. 받던 답변은 다른 세션을 열 때처럼 뒤에서 끝까지 받는다.
+  /// 이미 빈 새 세션이면 같은 빈 상태 그대로다(`ssot/GLOSSARY.md` "세션").
+  void startNew() => _restart(id: null, name: null, isLoading: false);
+
   /// 모바일 앱이 앞으로 왔다. 연결이 끊긴 답변이 있으면 그 세션을 다시 불러온다.
   Future<void> resumed() async {
     final String? id = _reloadId;

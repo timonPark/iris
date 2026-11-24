@@ -79,6 +79,14 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!same) unawaited(_chat.open(session));
   }
 
+  void _startNew() {
+    _closeDrawer();
+    // 녹음은 그 녹음을 시작한 세션의 것이라 버린다.
+    unawaited(_voice.cancel());
+    setState(() => _settings = false);
+    _chat.startNew();
+  }
+
   void _backToChat() => setState(() => _settings = false);
 
   void _showSettings() {
@@ -125,6 +133,7 @@ class _ChatScreenState extends State<ChatScreen> {
         currentId: _settings ? null : _chat.sessionId,
         loginId: widget.controller.loginId,
         onOpen: _open,
+        onNew: _startNew,
         onDelete: _askDelete,
         onSettings: _showSettings,
       ),

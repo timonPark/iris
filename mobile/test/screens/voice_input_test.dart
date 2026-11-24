@@ -250,4 +250,23 @@ void main() {
     expect(find.text('녹음하지 못했습니다. 다시 시도해 주세요.'), findsOneWidget);
     expect(find.text('녹음 중'), findsNothing);
   });
+
+  testWidgets('녹음 중에 [새 세션]을 누르면 녹음을 버린다', (WidgetTester tester) async {
+    final FakeApi api = FakeApi(<String, FakeHandler>{});
+    final FakeRecorder recorder = FakeRecorder();
+    await startChat(tester, api, recorder);
+
+    await tapMic(tester);
+    await tester.tap(find.byTooltip('세션 목록 열기'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(of: find.byType(Drawer), matching: find.text('새 세션')),
+    );
+    await settleIo(tester);
+    await tester.pump(const Duration(minutes: 3));
+
+    expect(find.text('녹음 중'), findsNothing);
+    expect(recorder.calls.last, 'cancel');
+    expect(api.requestsTo(voicePath), isEmpty);
+  });
 }
