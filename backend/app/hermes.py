@@ -1,4 +1,5 @@
 import json
+import logging
 from collections.abc import AsyncIterator
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Any, Protocol
@@ -7,8 +8,19 @@ import httpx
 
 from app.config import Settings
 
+logger: logging.Logger = logging.getLogger(__name__)
+
 # Hermes는 긴 작업 중에도 10초마다 keepalive를 보내므로, 60초 동안 아무것도 오지 않으면 멈춘 것으로 본다.
 TIMEOUT: httpx.Timeout = httpx.Timeout(10.0, read=60.0)
+
+
+def note_skipped_event(event: str) -> None:
+    """건너뛴 이벤트를 남긴다. `approval.request`는 Hermes가 터미널 명령 승인을 기다리는 것이라(Iris에는 승인할 방법이 없다)
+    답변이 늦어지는 원인이 되므로 경고로 남긴다. 명령 내용은 남기지 않는다."""
+    if event == "approval.request":
+        logger.warning("Hermes가 승인을 요청했다(approval.request). 승인할 방법이 없어 답변이 늦어질 수 있다")
+    else:
+        logger.debug("답변이 아닌 Hermes 이벤트를 건너뛴다: %s", event)
 
 
 class HermesError(Exception):
@@ -83,20 +95,24 @@ class HermesClient:
 
     @staticmethod
     async def _deltas(response: httpx.Response) -> AsyncIterator[str]:
-        skip_data: bool = False
+        event: str | None = None  # 지금 읽는 이벤트의 이름. 없으면 일반 답변 조각이다
         async for line in response.aiter_lines():
             if line.startswith("event:"):
-                # `hermes.tool.progress` 같은 Hermes 전용 이벤트는 답변이 아니다.
-                skip_data = line.removeprefix("event:").strip().startswith("hermes.")
-            elif line.startswith("data:") and not skip_data:
+                event = line.removeprefix("event:").strip()
+            elif line.startswith("data:"):
                 data: str = line.removeprefix("data:").strip()
                 if data == "[DONE]":
                     return
+                if event == "error":
+                    raise HermesError(f"Hermes 오류 이벤트: {data[:200]}")
+                if event not in (None, "message"):
+                    note_skipped_event(event)  # 이름이 붙은 이벤트는 답변이 아니다
+                    continue
                 text: str | None = parse_delta(data)
                 if text is not None:
                     yield text
             elif line == "":
-                skip_data = False
+                event = None
         # [DONE] 없이 끝났다: Hermes 재시작 등으로 답변이 중간에 잘렸다.
         raise HermesError("Hermes 응답이 끝나기 전에 연결이 닫혔다")
 
