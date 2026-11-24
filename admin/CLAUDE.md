@@ -45,17 +45,27 @@ npm run gen:api                 # docs/api/openapi.yaml → src/api/schema.d.ts 
 - `src/api/client.ts`의 `createApiClient({ baseUrl, getAccessToken })`를 씁니다. `openapi-fetch` 클라이언트라서 경로, 요청, 응답 타입이 `docs/api/openapi.yaml`과 같습니다. 예: `client.GET('/api/v1/admin/users')` → `{ data, error }`, `error`는 `{ error: { code, message } }` 모양입니다.
 - 관리자 웹은 로그인(`/api/v1/auth/login`)과 관리자 API(`/api/v1/admin/...`)만 부릅니다.
 - 요청마다 `ngrok-skip-browser-warning: 1`을 붙이고, 토큰이 있으면 `Authorization: Bearer`를 붙입니다.
-- 관리자 API의 인증 오류(`UNAUTHORIZED`, `FORBIDDEN`) 처리는 처음 관리자 API를 부르는 계정 관리 화면(#28)에서 만듭니다.
+- 관리자 API가 `UNAUTHORIZED`·`FORBIDDEN`을 돌려주면 `createApiClient`의 `onAuthError`가 한 곳에서 처리합니다: 로그인 상태를 지우고 로그인 화면에 "다시 로그인해 주세요."(`src/auth/useAuthFlow.ts`). 로그인 요청의 오류는 로그인 화면이 직접 안내하므로 부르지 않습니다. 화면마다 따로 처리하지 않습니다.
 - 규격이 바뀌면 `npm run gen:api`로 `src/api/schema.d.ts`를 다시 만들어 함께 커밋합니다. 이 파일은 손으로 고치지 않습니다.
 
 ### 로그인 (#20)
 
 - 로그인 상태는 `sessionStorage`의 `iris.admin.auth`(`src/auth/storage.ts`)가 기준입니다: `accessToken`, `loginId`. 새로고침해도 유지되지만 탭이나 브라우저를 닫으면 로그아웃됩니다. 새 탭은 로그인 화면부터입니다. 로그아웃 버튼은 없습니다(`../ssot/GLOSSARY.md` "관리자 웹").
 - 로그인 응답의 `role`이 `admin`이 아니면 저장하지 않고 "관리자 계정만 로그인할 수 있습니다."라고 안내합니다. 차단된 사용자 계정(`ACCOUNT_BLOCKED`)도 같은 문구입니다. 그 밖의 오류는 규격의 `message`, 연결 실패(응답 없음)는 "서버 오류가 발생했습니다."입니다(`src/auth/messages.ts`).
-- 화면 전환은 라우터 없이 상태로 합니다(`src/auth/useAuthFlow.ts`): 로그인 전이면 `LoginScreen`, 뒤면 `AdminScreen`(머리글과 본문 틀. 계정 목록은 #28).
+- 화면 전환은 라우터 없이 상태로 합니다(`src/auth/useAuthFlow.ts`): 로그인 전이면 `LoginScreen`, 뒤면 `AdminScreen`.
 - 폼은 응답을 기다리는 동안 다시 제출되지 않게 막습니다. Primer `Button`의 `loading`은 `aria-disabled`만 붙이고 제출을 막지 않습니다.
 - 테스트는 `src/test/fakeApi.ts`(경로별 응답을 정하는 가짜 fetch, `loginOk`, `apiError`)를 씁니다.
 - 확인용 임시 환경: 볼륨 없는 PostgreSQL 컨테이너와 임시 설정(`ADMIN_LOGIN_ID`, `ADMIN_PASSWORD`)의 백엔드를 띄우고 `VITE_API_BASE_URL=http://127.0.0.1:<포트> npm run dev`로 붙입니다(#20 work_history 참고).
+
+### 사용자 계정 관리 (#28)
+
+- 구조: `src/users/`(상태와 API: `useUsers` 목록과 "더 보기", `useCreateUser` 등록, `useUserActions` 차단·해제·초기화), `src/components/`(`UserList`, `UserTable`, `CreateDialog`, `ConfirmDialog`, `SecretDialog`, `TitleOnly`), 틀은 `src/screens/AdminScreen.tsx`.
+- 목록은 20개씩(`PAGE_SIZE`) 받고 `nextCursor`가 있으면 "더 보기"를 보여 줍니다. 등록한 계정은 목록 맨 위에 올리고, 차단·해제·초기화의 응답(`User`)으로 그 행을 바꿉니다(목록을 다시 받지 않음).
+- 차단과 초기화는 확인을 받고, 해제는 확인 없이 바로 합니다(샘플 #4). 확인 대화상자의 오류는 대화상자 안에, 해제와 "더 보기"의 오류는 목록 위에 보여 줍니다. 문구는 규격의 `message`, 응답이 없거나 규격 모양이 아니면 "서버 오류가 발생했습니다."입니다(`errorText`). 목록을 받지 못하면 "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."와 [다시 시도]입니다.
+- 임시 비밀번호는 `SecretDialog`에만 있고 "전달했습니다"로 닫으면 상태에서 지웁니다. 다시 볼 수 없습니다. 복사는 `navigator.clipboard`이고, 안 되면 값을 직접 선택합니다(`user-select: all`).
+- 대화상자는 Primer `Dialog`이고 머리는 제목만 있습니다(`TitleOnly`. 기본 닫기 버튼 이름이 영어 "Close"라서). Esc로 닫힙니다. jsdom에 없는 `ResizeObserver`는 `src/test/setup.ts`가 채웁니다.
+- 테스트 도구: `src/test/fakeApi.ts`의 `userOf`, `userPage`.
+- Primer 버튼은 색이 짧게 바뀌는 전환(transition)이 있어서, 테마를 바꾼 직후 찍은 스크린샷은 이전 색일 수 있습니다.
 
 ### Primer와 테마
 

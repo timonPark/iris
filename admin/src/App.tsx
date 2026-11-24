@@ -11,12 +11,14 @@ export interface AppProps {
 }
 
 export default function App({ fetch }: AppProps): JSX.Element {
-  const { auth, client, loggedIn }: AuthFlow = useAuthFlow(fetch)
+  const { auth, notice, client, loggedIn }: AuthFlow = useAuthFlow(fetch)
 
   return (
     <ThemeProvider colorMode="auto" dayScheme="light" nightScheme="dark" contextOnly>
       <BaseStyles className="root">
-        {auth === null ? <LoginScreen client={client} onLoggedIn={loggedIn} /> : <AdminScreen loginId={auth.loginId} />}
+        {auth === null
+          ? <LoginScreen client={client} notice={notice} onLoggedIn={loggedIn} />
+          : <AdminScreen client={client} loginId={auth.loginId} />}
       </BaseStyles>
     </ThemeProvider>
   )
