@@ -1,16 +1,22 @@
 import type { JSX } from 'react'
-import { BaseStyles, Heading, Text } from '@primer/react'
+import { BaseStyles } from '@primer/react'
 import { ThemeProvider } from '@primer/react/next'
+import { useAuthFlow, type AuthFlow } from './auth/useAuthFlow'
+import { AdminScreen } from './screens/AdminScreen'
+import { LoginScreen } from './screens/LoginScreen'
 
-/** 화면은 #20(관리자 로그인), #28(사용자 계정 관리)에서 만든다. 지금은 Primer 테마 확인용 자리다. */
-export default function App(): JSX.Element {
+export interface AppProps {
+  /** 테스트에서 가짜 fetch를 넣는다. */
+  fetch?: typeof fetch
+}
+
+export default function App({ fetch }: AppProps): JSX.Element {
+  const { auth, client, loggedIn }: AuthFlow = useAuthFlow(fetch)
+
   return (
     <ThemeProvider colorMode="auto" dayScheme="light" nightScheme="dark" contextOnly>
-      <BaseStyles>
-        <main className="app">
-          <Heading as="h1">Iris 관리자 웹</Heading>
-          <Text as="p">관리자 웹 준비 중입니다.</Text>
-        </main>
+      <BaseStyles className="root">
+        {auth === null ? <LoginScreen client={client} onLoggedIn={loggedIn} /> : <AdminScreen loginId={auth.loginId} />}
       </BaseStyles>
     </ThemeProvider>
   )
