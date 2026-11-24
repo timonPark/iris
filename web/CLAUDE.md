@@ -63,6 +63,7 @@ npm run gen:api                 # docs/api/openapi.yaml → src/api/schema.d.ts 
 - 질문 전송 SSE는 `EventSource`(GET만 됨) 대신 `client.POST(..., { parseAs: 'stream' })`로 받은 스트림을 `readSse`로 읽습니다. 시작 전 실패는 일반 JSON 오류라서 차단·토큰 무효 처리(`onAuthError`)를 그대로 탑니다.
 - **새 세션은 답변이 끝날 때 저장됩니다**(백엔드 `conclude` → `save_run`). 그래서 목록에 올리고 지금 세션 ID로 정하는 것은 `done`, `stopped`, 조각을 받은 뒤의 `error`를 받았을 때입니다(`onSaved`). 그 전에는 열거나 지울 수 없습니다. 중지 API에는 `session` 이벤트의 ID를 씁니다.
 - 다른 세션을 열어도 받던 스트림은 끊지 않고 뒤에서 끝까지 읽어, 저장되면 목록에 올립니다. 화면 갱신은 `generation`이 같을 때만 합니다(`useChat`의 `Live`).
+- 사이드바의 [새 세션] 버튼(#73)은 `useChat.startNew`입니다. 이미 빈 새 세션이면 아무 일도 없고(입력도 그대로), 아니면 다른 세션을 열 때처럼 받던 스트림은 뒤에서 끝까지 읽고 화면만 빈 새 세션으로 바꿉니다. 설정을 보는 중이면 채팅으로 돌아오고 좁은 화면의 서랍을 닫습니다(`../ssot/GLOSSARY.md` "세션").
 - 답변은 일반 텍스트(줄바꿈 유지)로 보여줍니다. 마크다운과 링크 처리는 하지 않습니다(링크는 #38).
 - 테스트 도구: `sseReply`(한 번에 끝나는 SSE), `controlledSse`(이벤트를 하나씩 흘림), `FakeReply.wait`(응답 미루기), `src/test/intersection.ts`의 `showElement`(목록 끝이 보인 것처럼).
 - 확인용 임시 환경(Hermes 없는 PC): 볼륨 없는 PostgreSQL 컨테이너 + 임시 설정의 백엔드 + OpenAI 호환 가짜 Hermes로 실제 스트리밍을 볼 수 있습니다(#24 work_history 참고).

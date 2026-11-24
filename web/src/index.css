@@ -43,6 +43,7 @@ body .field-input { font: var(--text-body-shorthand-large); }
 .sidebar__brand { margin: 0; font: var(--text-title-shorthand-small); }
 /* Primer IconButton이 display를 정하므로 body를 붙여 우선한다. */
 body .sidebar__close { display: none; }
+.sidebar__new { padding: 0 var(--stack-padding-normal) var(--space-sm); }
 .sidebar__heading {
   margin: 0; padding: var(--space-sm) var(--stack-padding-normal) var(--space-xs);
   font: var(--text-body-shorthand-small); font-weight: var(--base-text-weight-semibold);

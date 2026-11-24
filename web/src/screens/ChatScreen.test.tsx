@@ -66,6 +66,152 @@ describe('ChatScreen: 새 세션', () => {
   })
 })
 
+describe('ChatScreen: 새 세션 버튼', () => {
+  /** 지난 세션 하나. 가짜 fetch가 응답을 꺼내 쓰므로(shift) 테스트마다 새로 만든다. */
+  function old(): Record<string, FakeReply[]> {
+    return {
+      'GET /api/v1/sessions': [sessionsPage([session('s1', '지난 세션')])],
+      'GET /api/v1/sessions/s1/questions': [{
+        status: 200,
+        body: { items: [{ id: 'q1', text: '지난 질문', createdAt: '', answer: { id: 'a1', text: '지난 답', status: 'completed', createdAt: '' } }] },
+      }],
+    }
+  }
+
+  function newSessionButton(): HTMLElement {
+    return within(sessionList()).getByRole('button', { name: '새 세션' })
+  }
+
+  it('사이드바의 "세션" 제목 위에 있다', () => {
+    setup({})
+
+    const heading: HTMLElement = within(sessionList()).getByRole('heading', { level: 2, name: '세션' })
+    expect(newSessionButton().compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('지난 세션을 연 뒤 누르면 빈 새 세션이 되고, 다음 질문은 sessionId 없이 새 세션으로 간다', async () => {
+    const { api, user } = setup({
+      ...old(),
+      'POST /api/v1/sessions/questions': [sseReply([['session', { id: 's-new' }], ['delta', { text: '새 답' }], ['done', { answerId: 'a2' }]])],
+    })
+    await user.click(await within(sessionList()).findByRole('link', { name: '지난 세션' }))
+    await screen.findByText('지난 답')
+
+    await user.click(newSessionButton())
+
+    expect(screen.getByRole('heading', { level: 2, name: '새 세션' })).toBeInTheDocument()
+    expect(screen.queryByText('지난 답')).toBeNull()
+    expect(screen.getByText('Iris에게 질문하세요')).toBeInTheDocument()
+    expect(within(sessionList()).getByRole('link', { name: '지난 세션' })).not.toHaveAttribute('aria-current')
+    await ask(user, '새 질문')
+    await screen.findByText('새 답')
+    expect(api.sent.find((r) => r.method === 'POST')?.body).toEqual({ text: '새 질문' })
+    const links: string[] = (await within(sessionList()).findAllByRole('link')).map((l: HTMLElement): string => l.textContent ?? '')
+    expect(links).toEqual(['새 질문', '지난 세션'])
+  })
+
+  it('이미 빈 새 세션이면 아무 일도 없고, 적어 둔 입력도 그대로다', async () => {
+    const { api, user } = setup({})
+    await user.type(composer(), '쓰는 중')
+
+    await user.click(newSessionButton())
+
+    expect(composer()).toHaveValue('쓰는 중')
+    expect(api.sent.filter((r) => r.method === 'POST')).toHaveLength(0)
+  })
+
+  it('답변을 받는 중에 누르면 화면은 새 세션이 되고, 받던 답변은 끝까지 받아 목록에 생긴다', async () => {
+    const sse: ControlledSse = controlledSse()
+    const { user } = setup({ 'POST /api/v1/sessions/questions': [sse.reply] })
+    await ask(user, '긴 질문')
+    sse.push('session', { id: 's-long' })
+    sse.push('delta', { text: '받는 중' })
+    await screen.findByText('받는 중')
+
+    await user.click(newSessionButton())
+    expect(screen.getByRole('heading', { level: 2, name: '새 세션' })).toBeInTheDocument()
+    expect(screen.queryByText('받는 중')).toBeNull()
+    sse.push('done', { answerId: 'a1' })
+    sse.close()
+
+    const link: HTMLElement = await within(sessionList()).findByRole('link', { name: '긴 질문' })
+    expect(link).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('heading', { level: 2, name: '새 세션' })).toBeInTheDocument()
+  })
+
+  it('설정을 보다가 누르면 채팅의 빈 새 세션으로 돌아온다', async () => {
+    const { user } = setup({})
+    await user.click(within(sessionList()).getByRole('button', { name: '설정' }))
+
+    await user.click(newSessionButton())
+
+    expect(screen.getByRole('heading', { level: 2, name: '새 세션' })).toBeInTheDocument()
+    expect(composer()).toBeInTheDocument()
+  })
+
+  it('지난 세션을 보다가 설정으로 간 뒤 누르면 지난 대화 없이 빈 새 세션이다', async () => {
+    const { user } = setup(old())
+    await user.click(await within(sessionList()).findByRole('link', { name: '지난 세션' }))
+    await screen.findByText('지난 답')
+    await user.click(within(sessionList()).getByRole('button', { name: '설정' }))
+
+    await user.click(newSessionButton())
+
+    expect(screen.getByRole('heading', { level: 2, name: '새 세션' })).toBeInTheDocument()
+    expect(screen.queryByText('지난 답')).toBeNull()
+    expect(within(sessionList()).getByRole('link', { name: '지난 세션' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('답변을 받는 중에 누르고 바로 질문하면, 새 질문은 sessionId 없이 가고 두 세션이 따로 생긴다', async () => {
+    const first: ControlledSse = controlledSse()
+    const { api, user } = setup({
+      'POST /api/v1/sessions/questions': [first.reply, sseReply([['session', { id: 's-two' }], ['delta', { text: '둘째 답' }], ['done', { answerId: 'a2' }]])],
+    })
+    await ask(user, '첫째 질문')
+    first.push('session', { id: 's-one' })
+    first.push('delta', { text: '첫째 받는 중' })
+    await screen.findByText('첫째 받는 중')
+
+    await user.click(newSessionButton())
+    await ask(user, '둘째 질문')
+    await screen.findByText('둘째 답')
+    first.push('done', { answerId: 'a1' })
+    first.close()
+
+    const posts: unknown[] = api.sent.filter((r) => r.method === 'POST').map((r) => r.body)
+    expect(posts).toEqual([{ text: '첫째 질문' }, { text: '둘째 질문' }])
+    await within(sessionList()).findByRole('link', { name: '첫째 질문' })
+    expect(within(sessionList()).getByRole('link', { name: '둘째 질문' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.queryByText('첫째 받는 중')).toBeNull()
+  })
+
+  it('지난 세션을 불러오는 중에 누르면, 늦게 온 지난 대화가 새 세션 화면을 덮지 않는다', async () => {
+    let release: () => void = (): void => {}
+    const wait: Promise<void> = new Promise<void>((resolve: () => void): void => { release = resolve })
+    const base: Record<string, FakeReply[]> = old()
+    const { user } = setup({ ...base, 'GET /api/v1/sessions/s1/questions': [{ ...base['GET /api/v1/sessions/s1/questions'][0], wait }] })
+    await user.click(await within(sessionList()).findByRole('link', { name: '지난 세션' }))
+
+    await user.click(newSessionButton())
+    release()
+
+    await waitFor((): void => expect(screen.getByRole('heading', { level: 2, name: '새 세션' })).toBeInTheDocument())
+    await new Promise<void>((r: () => void): void => { setTimeout(r, 50) })
+    expect(screen.queryByText('지난 답')).toBeNull()
+    expect(screen.getByRole('heading', { level: 2, name: '새 세션' })).toBeInTheDocument()
+  })
+
+  it('좁은 화면의 서랍에서 누르면 서랍을 닫는다', async () => {
+    const { user } = setup({})
+    await user.click(screen.getByRole('button', { name: '세션 목록 열기' }))
+    expect(document.querySelector('.app')).toHaveClass('is-drawer-open')
+
+    await user.click(newSessionButton())
+
+    expect(document.querySelector('.app')).not.toHaveClass('is-drawer-open')
+  })
+})
+
 describe('ChatScreen: 질문과 스트리밍', () => {
   it('질문하면 답변이 조각마다 이어 붙고, 끝나면 세션이 목록 맨 위에 생긴다', async () => {
     const sse: ControlledSse = controlledSse()

@@ -25,6 +25,8 @@ export interface Chat extends ChatState {
   stop: () => void
   open: (session: Session) => Promise<void>
   reset: () => void
+  /** [새 세션] 버튼. 이미 빈 새 세션이면 아무 일도 없고, 받던 답변은 다른 세션을 열 때처럼 뒤에서 끝까지 받는다. */
+  startNew: () => void
 }
 
 /** 비동기 흐름이 공유하는 값. generation이 바뀌면(다른 세션을 열거나 새로 시작) 진행 중이던 흐름의 결과는 버린다. */
@@ -71,7 +73,15 @@ export function useChat(client: ApiClient, onSessionActive: (session: Session) =
     stop: (): void => stopAnswer(ctx),
     open: (session: Session): Promise<void> => openSession(ctx, session, restart),
     reset: (): void => void restart(INITIAL, true),
+    startNew: (): void => {
+      if (!isBlank(stateRef.current)) restart(INITIAL, false)
+    },
   }
+}
+
+/** 아직 질문하지 않은 빈 새 세션이다. */
+function isBlank(state: ChatState): boolean {
+  return state.sessionId === null && state.items.length === 0 && !state.loading
 }
 
 async function sendQuestion(ctx: Ctx, text: string): Promise<void> {

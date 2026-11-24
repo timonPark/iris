@@ -29,14 +29,12 @@ export function ChatScreen({ client, loginId, onPasswordChanged }: ChatScreenPro
     sessions.remove(id)
     if (id === chat.sessionId) chat.reset()
   })
-  const openSession = (session: Session): void => {
-    show('chat')
-    void chat.open(session)
-  }
+  const openSession = (session: Session): void => { show('chat'); void chat.open(session) }
+  const startNew = (): void => { show('chat'); chat.startNew() }
 
   return (
     <div className={drawerOpen ? 'app is-drawer-open' : 'app'}>
-      <Sidebar sessions={sessions} currentId={view === 'chat' ? chat.sessionId : null} loginId={loginId} onOpen={openSession} onDelete={deletion.ask} onSettings={(): void => show('settings')} onClose={(): void => setDrawerOpen(false)} />
+      <Sidebar sessions={sessions} currentId={view === 'chat' ? chat.sessionId : null} loginId={loginId} onOpen={openSession} onNew={startNew} onDelete={deletion.ask} onSettings={(): void => show('settings')} onClose={(): void => setDrawerOpen(false)} />
       <div className="drawer-backdrop" onClick={(): void => setDrawerOpen(false)} />
       <div className="main">
         <div className="topbar">
