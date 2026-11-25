@@ -34,14 +34,16 @@ class FakeHermes:
         self.delay: float = delay
         self.fail_on_open: bool = fail_on_open
         self.hang_on_open: bool = hang_on_open  # 연결하는 중에 멈춘다(열리지 않는다)
-        self.calls: list[list[dict[str, str]]] = []
+        self.calls: list[list[dict[str, str]]] = []  # 받은 대화(백엔드가 붙인 지시문은 뺀 것)
+        self.raw_calls: list[list[dict[str, str]]] = []  # 받은 메시지 전부(지시문 포함)
         self.cancelled: bool = False  # 끝까지 가기 전에 연결이 닫혔는가(중지로 취소됨)
         self.finished: bool = False  # 조각을 끝까지 보냈는가
         self.failed: bool = False  # 오류로 끝났는가
 
     @asynccontextmanager
     async def open_chat(self, messages: list[dict[str, str]]) -> AsyncIterator[AsyncIterator[str]]:
-        self.calls.append(messages)
+        self.raw_calls.append(messages)
+        self.calls.append([m for m in messages if m["role"] != "system"])
         if self.fail_on_open:
             raise HermesError("Hermes가 꺼져 있다")
         if self.hang_on_open:

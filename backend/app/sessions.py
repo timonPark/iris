@@ -20,6 +20,7 @@ from app.chat import (
 )
 from app.errors import not_streaming, server_error, session_busy, session_not_found
 from app.hermes import ChatBackend
+from app.instructions import with_instruction
 from app.models import Account, AnswerStatus, ChatSession, Question
 from app.runs import ChatRun, RunRegistry, format_sse, launch_run, stream_events
 from app.schemas import ApiModel
@@ -183,7 +184,7 @@ async def submit_question(
     except BaseException:
         registry.remove(run)  # 없는 세션(404)이거나 응답을 시작하기 전에 끊긴 경우
         raise
-    run.messages = [*context, {"role": "user", "content": text}]
+    run.messages = with_instruction([*context, {"role": "user", "content": text}])  # 지시문은 보내기만 하고 저장하지 않는다
     launch_run(registry, backend, request.app.state.session_factory, run)
     return await open_stream(run, is_new, text if announce_text else None)
 

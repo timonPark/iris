@@ -116,6 +116,11 @@ def test_first_question_streams_session_deltas_and_done_and_stores_the_pair(
         answer: Answer = db.scalars(select(Answer)).all()[-1]
         assert str(answer.id) == reply.events[-1][1]["answerId"]
     assert live_server.app.state.hermes.calls == [[{"role": "user", "content": "오늘 날씨 어때?"}]]
+    sent: list[dict[str, str]] = live_server.app.state.hermes.raw_calls[0]
+    assert sent[0]["role"] == "system" and "옵시디언" in sent[0]["content"]  # 자료 요청 지시문이 맨 앞에 붙는다
+    with sessionmaker(migrated_engine)() as db:  # 지시문은 저장하지 않는다
+        assert all("옵시디언" not in text for text in db.scalars(select(Question.text)).all())
+        assert all("옵시디언" not in text for text in db.scalars(select(Answer.text)).all())
 
 
 def test_response_is_a_server_sent_event_stream_without_caching(
