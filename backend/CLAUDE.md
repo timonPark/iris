@@ -113,6 +113,16 @@ uv run alembic current                             # 현재 적용된 버전 확
 - Hermes를 부르는 쪽은 `ChatBackend`(`open_chat`)입니다. 테스트에서는 `tests/fakes.py`의 `FakeHermes`(조각, 지연, 멈춤, 오류를 지정)를 `app.state.hermes`에 넣습니다. 스트리밍 도중의 동작(중지, 연결 끊김, 동시 요청)은 `TestClient`가 응답을 끝까지 모아서 확인할 수 없으므로 실제 소켓으로 접속하는 `live_server` fixture(`tests/conftest.py`)로 검증합니다.
 - 알려진 한계: 맥락 길이에 한도를 두지 않습니다(이슈의 지시). 긴 세션에서 이전 질문·답변 전체가 모델의 한도를 넘으면 Hermes 오류로 질문이 500 `SERVER_ERROR`가 됩니다. 요청 본문 크기도 제한하지 않습니다(65,536자 검사는 읽은 뒤에 합니다). 응답이 시작되기도 전에 클라이언트가 끊기면 작업은 계속되고 이벤트 큐가 답변 하나의 크기만큼 쌓였다가 사라집니다. Hermes의 동시 실행 한도(기본 10, 넘으면 429)에 걸리면 질문은 500 `SERVER_ERROR`가 됩니다.
 
+### 자료 링크 (#75)
+
+- 사용자가 자료를 요청하면 Hermes가 **옵시디언에서 찾아** 구글 드라이브에 올리고 **링크가 있는 누구나 열 수 있는 주소**를 답변에 넣습니다(`ssot/GLOSSARY.md` "자료 링크"). 후보가 여러 개면 이름만 보여주고 되묻고, 없으면 "해당 자료를 찾지 못했습니다."입니다.
+- **지시문**(`app/instructions.py`의 `material_instruction`)을 질문마다 Hermes에 보내는 메시지 맨 앞에 `system`으로 붙입니다(`sessions.submit_question`, 음성 질문 포함). **DB에는 저장하지 않고** 자료와 상관없는 질문에는 평소처럼 답하게 합니다. 실제 Hermes로 일반 질문, 없는 자료, 후보가 여러 개인 자료를 확인했습니다.
+- **링크 전달은 답변 글 속의 주소 그대로**입니다(API는 바뀌지 않음). 웹과 모바일(#38, #39)이 답변에서 `https://drive.google.com/...` 주소를 찾아 화면 요소로 보여 줍니다. 별도 SSE 이벤트는 만들지 않았습니다. Hermes가 지시를 매번 지킨다는 보장은 없습니다.
+- 올리는 도구는 **`hermes_tools/drive-upload.sh <절대 경로>`** 하나입니다(`drive_upload.py`). Hermes의 구글 토큰으로 파일 하나를 올리고 `anyone`+`reader`(링크를 아는 사람만, 검색에는 안 잡힘)로 공유한 뒤 `{"name", "path", "link"}`를 출력합니다. 옵시디언 폴더(`~/hermes-obsidian`)와 Iris 보관함(`~/.hermes/iris-outbox`) **안의 파일만** 올리고(`..`, 심볼릭 링크, 폴더, 50MB 초과는 거절), **숨김 폴더와 숨김 파일(`.git`, `.obsidian`, `.env` 등)과 문서·이미지가 아닌 형식(키, 설정, 데이터베이스, 스크립트 등)은 올리지 않습니다**(허용: md, txt, html, pdf, csv, 이미지, 오피스 문서). 삭제는 하지 않습니다. 폴더는 `IRIS_VAULT_DIR`, `IRIS_OUTBOX_DIR`로 바꿀 수 있습니다.
+- **드라이브 폴더 구조는 옵시디언 그대로**입니다: `90-Hermes/노트.md` → `Iris 자료/90-Hermes/노트.md`(Iris 보관함 파일은 `Iris 자료/_보관함/`. 옵시디언에 `보관함` 폴더가 있어도 겹치지 않게 `_`를 붙임). 폴더는 없으면 만듭니다. 같은 경로의 파일을 다시 올리면 **덮어써서** 링크가 그대로입니다(복사본이 쌓이지 않음). 형식은 원본 파일 그대로입니다(구글 문서로 변환하지 않음). 올린 파일의 정리(삭제)는 아직 없습니다.
+- **왜 고정 도구인가**: Hermes가 `$PY …` 같이 변수로 감싼 명령으로 올리면 보안 검사기(Tirith, `tirith:analysis_incomplete`)가 승인을 요청하는데, Iris에는 승인할 방법이 없고 영구 허용도 안 되어 Hermes가 5분 기다린 뒤 실패합니다. 고정 경로의 도구를 직접 실행하면 승인 없이 통과합니다(실제 Hermes로 확인). Hermes 설정은 바꾸지 않았습니다.
+- 올릴 때 쓰는 계정은 Hermes에 연결된 구글 계정(`~/.hermes/google_token.json`, 지금은 `itinnovationtf@gmail.com`)입니다. 계정을 바꾸면 올라가는 드라이브도 바뀝니다.
+
 ### Hermes 연동
 
 - 백엔드는 이 PC의 Hermes API 서버(`http://127.0.0.1:8642`)를 `app/hermes.py`의 `HermesClient.stream_chat()`으로 호출합니다(`/v1/chat/completions`, 스트림).

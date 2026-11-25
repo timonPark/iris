@@ -84,6 +84,7 @@ def test_a_recording_becomes_the_corrected_question_then_the_answer_streams(
     assert names(events) == ["session", "question", "delta", "delta", "done"]
     assert events[1][1] == {"text": "오늘 서울 날씨가 어때요"}
     assert voice_live.app.state.hermes.calls == [[{"role": "user", "content": "오늘 서울 날씨가 어때요"}]]
+    assert voice_live.app.state.hermes.raw_calls[0][0]["role"] == "system"  # 음성 질문에도 같은 지시문이 붙는다
     with sessionmaker(migrated_engine)() as db:
         question: Question = db.scalars(
             select(Question).join(ChatSession).where(ChatSession.account_id == owner.id)
