@@ -344,6 +344,92 @@ describe('ChatScreen: 질문과 스트리밍', () => {
   })
 })
 
+describe('ChatScreen: 자료 링크', () => {
+  const DRIVE: string = 'https://drive.google.com/file/d/1AbC/view?usp=drivesdk'
+  const SHEET: string = 'https://docs.google.com/spreadsheets/d/S1/edit'
+
+  function linkCards(): HTMLElement {
+    return screen.getByRole('list', { name: '링크' })
+  }
+
+  it('답변이 끝나면 본문의 구글 주소는 짧은 링크 글자로, 답변 아래에는 링크마다 카드로 보이고 새 탭에서 열린다', async () => {
+    const sse: ControlledSse = controlledSse()
+    const { user } = setup({ 'POST /api/v1/sessions/questions': [sse.reply] })
+
+    await ask(user, '자료 줘')
+    sse.push('session', { id: 's-new' })
+    sse.push('delta', { text: `파일: ${DRIVE}\n표: ${SHEET}\n참고: https://example.com/a` })
+    // 받는 중에는 주소를 글자 그대로 둔다(잘린 주소로 링크를 만들지 않는다).
+    expect(await screen.findByText(/파일: https:\/\/drive/)).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: '링크' })).toBeNull()
+    sse.push('done', { answerId: 'a1' })
+    sse.close()
+
+    const cards: HTMLElement[] = within(await screen.findByRole('list', { name: '링크' })).getAllByRole('link')
+    expect(cards.map((a: HTMLElement) => [a.textContent, a.getAttribute('href')])).toEqual([
+      ['구글 드라이브drive.google.com', DRIVE],
+      ['구글 시트docs.google.com', SHEET],
+    ])
+    const answer: HTMLElement = screen.getByText(/^파일:/, { selector: '.answer p' })
+    expect(answer).toHaveTextContent('파일: 구글 드라이브 표: 구글 시트 참고: https://example.com/a')
+    const inline: HTMLElement[] = within(answer).getAllByRole('link')
+    expect(inline.map((a: HTMLElement) => a.getAttribute('href'))).toEqual([DRIVE, SHEET])
+    for (const a of [...cards, ...inline]) {
+      expect(a).toHaveAttribute('target', '_blank')
+      expect(a).toHaveAttribute('rel', 'noopener noreferrer')
+    }
+  })
+
+  it('지난 세션을 열어도 답변의 구글 주소가 카드로 보인다', async () => {
+    const { user } = setup({
+      'GET /api/v1/sessions': [sessionsPage([session('s1', '지난 자료')])],
+      'GET /api/v1/sessions/s1/questions': [
+        { status: 200, body: { items: [{ id: 'q1', text: '지난 자료', answer: { text: `여기 있습니다 ${DRIVE}`, status: 'completed' } }] } },
+      ],
+    })
+
+    await user.click(await within(sessionList()).findByRole('link', { name: '지난 자료' }))
+
+    await waitFor((): void => expect(within(linkCards()).getAllByRole('link')).toHaveLength(1))
+  })
+
+  it('중지해서 끝난 답변도 받은 부분의 구글 문서, 슬라이드 주소가 카드로 보인다', async () => {
+    const doc: string = 'https://docs.google.com/document/d/D1/edit'
+    const slide: string = 'https://docs.google.com/presentation/d/P1/edit'
+    const sse: ControlledSse = controlledSse()
+    const { user } = setup({
+      'POST /api/v1/sessions/questions': [sse.reply],
+      'POST /api/v1/sessions/s-new/stop': [{ status: 204 }],
+    })
+
+    await ask(user, '자료 둘')
+    sse.push('session', { id: 's-new' })
+    sse.push('delta', { text: `문서 ${doc} 발표 ${slide}` })
+    await screen.findByText(/^문서 https/)
+    await user.click(screen.getByRole('button', { name: '중지' }))
+    sse.push('stopped', { answerId: 'a1' })
+    sse.close()
+
+    const cards: HTMLElement[] = within(await screen.findByRole('list', { name: '링크' })).getAllByRole('link')
+    expect(cards.map((a: HTMLElement) => [a.textContent, a.getAttribute('href')])).toEqual([
+      ['구글 문서docs.google.com', doc],
+      ['구글 슬라이드docs.google.com', slide],
+    ])
+    expect(screen.getByText(/^문서/, { selector: '.answer p' })).toHaveTextContent('문서 구글 문서 발표 구글 슬라이드')
+  })
+
+  it('구글 주소가 없으면 카드 목록이 없다', async () => {
+    const { user } = setup({
+      'POST /api/v1/sessions/questions': [sseReply([['session', { id: 's-new' }], ['delta', { text: '그냥 답' }], ['done', { answerId: 'a1' }]])],
+    })
+
+    await ask(user, '질문')
+    await screen.findByText('그냥 답')
+
+    expect(screen.queryByRole('list', { name: '링크' })).toBeNull()
+  })
+})
+
 describe('ChatScreen: 오류', () => {
   it('답변을 받기 전에 서버 오류가 나면 질문 아래에 안내하고 세션은 생기지 않는다', async () => {
     const { user } = setup({

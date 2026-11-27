@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useRef, type JSX, type RefObject, type UIEvent } from 'react'
 import type { ChatAnswer, ChatItem } from '../chat/types'
+import { findGoogleLinks, type GoogleLink } from '../chat/links'
 import { ErrorFlash } from './FormParts'
+import { LinkCards, LinkedText } from './LinkCards'
 
 export interface ThreadProps {
   items: ChatItem[]
@@ -67,14 +69,17 @@ function useFollowBottom(items: ChatItem[]): FollowBottom {
 
 function Answer({ answer }: { answer: ChatAnswer }): JSX.Element {
   const streaming: boolean = answer.status === 'streaming'
+  // 받는 중에는 주소가 잘려 있을 수 있어 답변이 끝난 뒤에만 링크로 바꾼다(`ssot/GLOSSARY.md` "자료 링크").
+  const links: GoogleLink[] = streaming ? [] : findGoogleLinks(answer.text)
   return (
     <div className="answer">
       {answer.text !== '' && (
         <p>
-          {answer.text}
+          {streaming ? answer.text : <LinkedText text={answer.text} links={links} />}
           {streaming && <span className="caret" aria-hidden="true" />}
         </p>
       )}
+      {links.length > 0 && <LinkCards links={links} />}
       {streaming && <div className="answer__meta" aria-live="polite">답변을 받는 중…</div>}
       {answer.status === 'stopped' && (
         <div className="answer__meta">
