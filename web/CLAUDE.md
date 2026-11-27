@@ -64,7 +64,8 @@ npm run gen:api                 # docs/api/openapi.yaml → src/api/schema.d.ts 
 - **새 세션은 답변이 끝날 때 저장됩니다**(백엔드 `conclude` → `save_run`). 그래서 목록에 올리고 지금 세션 ID로 정하는 것은 `done`, `stopped`, 조각을 받은 뒤의 `error`를 받았을 때입니다(`onSaved`). 그 전에는 열거나 지울 수 없습니다. 중지 API에는 `session` 이벤트의 ID를 씁니다.
 - 다른 세션을 열어도 받던 스트림은 끊지 않고 뒤에서 끝까지 읽어, 저장되면 목록에 올립니다. 화면 갱신은 `generation`이 같을 때만 합니다(`useChat`의 `Live`).
 - 사이드바의 [새 세션] 버튼(#73)은 `useChat.startNew`입니다. 이미 빈 새 세션이면 아무 일도 없고(입력도 그대로), 아니면 다른 세션을 열 때처럼 받던 스트림은 뒤에서 끝까지 읽고 화면만 빈 새 세션으로 바꿉니다. 설정을 보는 중이면 채팅으로 돌아오고 좁은 화면의 서랍을 닫습니다(`../ssot/GLOSSARY.md` "세션").
-- 답변은 일반 텍스트(줄바꿈 유지)로 보여줍니다. 마크다운과 링크 처리는 하지 않습니다(링크는 #38).
+- 답변은 일반 텍스트(줄바꿈 유지)로 보여줍니다. 마크다운은 처리하지 않습니다.
+- 자료 링크(#38): 답변이 끝나면(`status`가 `streaming`이 아니면) `src/chat/links.ts`의 `findGoogleLinks`로 구글 문서·시트·슬라이드·드라이브 파일 주소를 찾아, 본문은 짧은 링크 글자(종류 이름)로 바꾸고 답변 아래에 카드(`src/components/LinkCards.tsx`)를 붙입니다. 받는 중에는 잘린 주소일 수 있어 글자 그대로 둡니다. 링크는 새 탭(`target="_blank"`, `rel="noopener noreferrer"`)으로 엽니다(`../ssot/GLOSSARY.md` "자료 링크").
 - 테스트 도구: `sseReply`(한 번에 끝나는 SSE), `controlledSse`(이벤트를 하나씩 흘림), `FakeReply.wait`(응답 미루기), `src/test/intersection.ts`의 `showElement`(목록 끝이 보인 것처럼).
 - 확인용 임시 환경(Hermes 없는 PC): 볼륨 없는 PostgreSQL 컨테이너 + 임시 설정의 백엔드 + OpenAI 호환 가짜 Hermes로 실제 스트리밍을 볼 수 있습니다(#24 work_history 참고).
 
